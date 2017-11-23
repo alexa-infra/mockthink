@@ -91,6 +91,11 @@ class TestDateTimeGetters(MockTest):
         ).run(conn)
         assertEqual(expected, set(list(result)))
 
+    def test_now(self, conn):
+        result = r.now().run(conn)
+        assert(isinstance(result, datetime.datetime))
+        assert(isinstance(result.tzinfo, RqlTzinfo))
+
 class TestMoreTime(MockTest):
     @staticmethod
     def get_data():

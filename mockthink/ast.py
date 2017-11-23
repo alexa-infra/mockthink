@@ -903,7 +903,7 @@ class DayOfWeek(MonExp):
         return dtime.isoweekday()
 
 class Now(RBase):
-    def __init__(self, optsargs={}):
+    def __init__(self, optargs={}):
         self.optargs = optargs
 
     def run(self, db, scope):

@@ -45,6 +45,14 @@ def handle_generic_binop(Mt_Constructor, node):
     )
 
 @util.curry2
+def handle_generic_binop_opt(Mt_Constructor, node):
+    return Mt_Constructor(
+        type_dispatch(node.args[0]),
+        type_dispatch(node.args[1]) if len(node.args) == 2 else None,
+        optargs=process_optargs(node)
+    )
+
+@util.curry2
 def handle_generic_binop_poly_2(mt_type_map, node):
     for r_type, m_type in iteritems(mt_type_map):
         if isinstance(node.args[1], r_type):
@@ -190,7 +198,6 @@ NORMAL_BINOPS = {
     r_ast.Mod: mt_ast.Mod,
     r_ast.Bracket: mt_ast.Bracket,
     r_ast.GetField: mt_ast.GetField,
-    r_ast.Table: mt_ast.RTable,
     r_ast.Get: mt_ast.Get,
     r_ast.Map: mt_ast.MapWithRFunc,
     r_ast.Replace: mt_ast.Replace,
@@ -321,6 +328,8 @@ NORMAL_AGGREGATIONS = {
         }
     }
 }
+
+RQL_TYPE_HANDLERS[r_ast.Table] = handle_generic_binop_opt(mt_ast.RTable)
 
 for r_type, mt_type in iteritems(NORMAL_ZEROPS):
     RQL_TYPE_HANDLERS[r_type] = handle_generic_zerop(mt_type)

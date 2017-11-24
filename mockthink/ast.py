@@ -129,8 +129,31 @@ class RTable(BinExp):
     def has_table_scope(self):
         return True
 
+    def find_db_scope(self, scope):
+        if self.right:
+            return super().find_db_scope(scope)
+        return scope.get_db()
+
     def do_run(self, data, table_name, arg, scope):
         return data.get_table(table_name)
+
+    def run(self, arg, scope):
+        if self.right:
+            self.set_mock_ref(self.left)
+            self.set_mock_ref(self.right)
+            left = self.left.run(arg, scope)
+            right = self.right.run(arg, scope)
+            return self.do_run(left, right, arg, scope)
+        self.set_mock_ref(self.left)
+        left = self.left.run(arg, scope)
+        db_name = self.find_db_scope(scope)
+        if arg is None:
+            db = scope.get_data()
+            data = db.get_db(db_name)
+        else:
+            data = arg.get_db(db_name)
+        return self.do_run(data, left, arg, scope)
+
 
 class Bracket(BinExp):
     def do_run(self, thing, thing_attr, arg, scope):

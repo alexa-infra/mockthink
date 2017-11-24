@@ -330,6 +330,7 @@ class MockThink(object):
         query.mockdb_ref = self.data
         scope = Scope({})
         scope.db = db
+        scope.data = self.data
         result = query.run(self.data, scope)
         changes = None
         if isinstance(result, tuple) and isinstance(result[0], MockDb):

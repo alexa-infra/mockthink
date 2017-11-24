@@ -26,6 +26,13 @@ class Scope(object):
             return self.parent.get_db()
         return None
 
+    def get_data(self):
+        if hasattr(self, 'data'):
+            return self.data
+        if hasattr(self, 'parent'):
+            return self.parent.get_data()
+        return None
+
     def push(self, vals):
         scope = Scope(vals)
         scope.parent = self

@@ -632,6 +632,29 @@ class TableList(MonExp):
         db_name = self.find_db_scope(scope)
         return arg.list_tables_in_db(db_name)
 
+class TableCreateTL(MonExp):
+    def do_run(self, table_name, arg, scope):
+        db_name = self.find_db_scope(scope)
+        return arg.create_table_in_db(db_name, table_name)
+    def find_db_scope(self, scope):
+        return scope.get_db()
+
+class TableDropTL(MonExp):
+    def do_run(self, table_name, arg, scope):
+        db_name = self.find_db_scope(scope)
+        return arg.drop_table_in_db(db_name, table_name)
+    def find_db_scope(self, scope):
+        return scope.get_db()
+
+class TableListTL(RBase):
+    def __init__(self, optargs={}):
+        self.optargs = optargs
+    def run(self, arg, scope):
+        db_name = self.find_db_scope(scope)
+        return arg.list_tables_in_db(db_name)
+    def find_db_scope(self, scope):
+        return scope.get_db()
+
 
 class DbCreate(MonExp):
     def do_run(self, db_name, arg, scope):

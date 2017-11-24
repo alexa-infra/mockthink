@@ -129,7 +129,8 @@ def binop_splat(Mt_Constructor, node):
 #   0-ary reql terms which don't need any special handling
 NORMAL_ZEROPS = {
     r_ast.Now: mt_ast.Now,
-    r_ast.DbList: mt_ast.DbList
+    r_ast.DbList: mt_ast.DbList,
+    r_ast.TableListTL: mt_ast.TableListTL
 }
 
 
@@ -166,7 +167,9 @@ NORMAL_MONOPS = {
     r_ast.ToEpochTime: mt_ast.ToEpochTime,
     r_ast.Literal: mt_ast.Literal,
     r_ast.Distinct: mt_ast.Distinct,
-    r_ast.ISO8601: mt_ast.ISO8601
+    r_ast.ISO8601: mt_ast.ISO8601,
+    r_ast.TableCreateTL: mt_ast.TableCreateTL,
+    r_ast.TableDropTL: mt_ast.TableDropTL,
 }
 
 #   2-ary reql terms which don't need any special handling

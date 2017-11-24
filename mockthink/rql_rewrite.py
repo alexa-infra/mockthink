@@ -186,6 +186,7 @@ NORMAL_BINOPS = {
     r_ast.Div: mt_ast.Div,
     r_ast.Mod: mt_ast.Mod,
     r_ast.Bracket: mt_ast.Bracket,
+    r_ast.GetField: mt_ast.GetField,
     r_ast.Table: mt_ast.RTable,
     r_ast.Get: mt_ast.Get,
     r_ast.Map: mt_ast.MapWithRFunc,

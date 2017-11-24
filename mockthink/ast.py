@@ -140,6 +140,18 @@ class Bracket(BinExp):
         except IndexError as k:
             self.raise_rql_not_found_error('Index "{}" out of range'.format(thing_attr))
 
+class GetField(BinExp):
+    def do_run(self, thing, thing_attr, arg, scope):
+        if isinstance(thing, dict):
+            try:
+                return thing[thing_attr]
+            except KeyError as k:
+                self.raise_rql_not_found_error('Key "{}" not found'.format(thing_attr))
+        if util.is_iterable(thing):
+            mapped = list(map(lambda x: x.get(thing_attr), thing))
+            return filter(None, mapped)
+        self.raise_rql_runtime_error('Object or sequence of objects is expected')
+
 class Get(BinExp):
     def do_run(self, left, right, arg, scope):
         return util.find_first(util.match_attr('id', right), left)

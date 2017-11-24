@@ -124,7 +124,9 @@ class Json(MonExp):
 class RTable(BinExp):
     def find_table_scope(self, scope):
         table_scope = scope.push({})
-        return self.right.run(None, table_scope)
+        if self.right:
+            return self.right.run(None, table_scope)
+        return self.left.run(None, table_scope)
 
     def has_table_scope(self):
         return True

@@ -152,6 +152,41 @@ class TestConcatMap(MockTest):
         results = list(query.run(conn))
         assertEqual(expected, results)
 
+class TestCompoundIndex(MockTest):
+    @staticmethod
+    def get_data():
+        npc = [
+            {'id': 'joe-id', 'name': 'joe', 'team': 'red', 'deleted': False},
+            {'id': 'bob-id', 'name': 'bob', 'team': 'red', 'deleted': True},
+            {'id': 'bill-id', 'name': 'bill', 'team': 'red', 'deleted': True},
+            {'id': 'kimye-id', 'name': 'kimye', 'team': 'green', 'deleted': False}
+        ]
+        return as_db_and_table('x', 'npc', npc)
+
+    def create_index(self, conn):
+        r.db('x').table('npc').index_create('team_current',
+            [r.row['team'], r.row['deleted'].not_()]
+        ).run(conn)
+
+    def test_simple(self, conn):
+        self.create_index(conn)
+        query = r.db('x').table('npc')
+        query = query.get_all(['red', True], index='team_current')
+        query = query.get_field('name')
+        results = list(query.run(conn))
+        expected = ['joe']
+        assertEqual(expected, results)
+
+    def test_list(self, conn):
+        self.create_index(conn)
+        query = r.db('x').table('npc')
+        query = query.get_all(['red', True], ['green', True], index='team_current')
+        query = query.get_field('name')
+        results = list(query.run(conn))
+        expected = ['joe', 'kimye']
+        assertEqual(expected, results)
+
+
 class TestBracket(MockTest):
     @staticmethod
     def get_data():

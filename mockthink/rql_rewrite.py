@@ -120,6 +120,13 @@ def binop_splat(Mt_Constructor, node):
         right = makearray_of_datums(args[1:])
     return Mt_Constructor(left, right, optargs=process_optargs(node))
 
+@util.curry2
+def binop_variable(Mt_Constructor, node):
+    args = node.args
+    left = type_dispatch(args[0])
+    right = makearray_of_datums(args[1:])
+    return Mt_Constructor(left, right, optargs=process_optargs(node))
+
 
 #
 #   ReQL functions have an arity one greater than they seem to.
@@ -253,7 +260,6 @@ SPLATTED_BINOPS = {
     r_ast.Pluck: mt_ast.PluckPoly,
     r_ast.HasFields: mt_ast.HasFields,
     r_ast.Without: mt_ast.WithoutPoly,
-    r_ast.GetAll: mt_ast.GetAll,
     r_ast.DeleteAt: mt_ast.DeleteAt
 }
 
@@ -343,6 +349,8 @@ for r_type, mt_type in iteritems(NORMAL_BINOPS):
 
 for r_type, arg_2_map in iteritems(BINOPS_BY_ARG_2_TYPE):
     RQL_TYPE_HANDLERS[r_type] = handle_generic_binop_poly_2(arg_2_map)
+
+RQL_TYPE_HANDLERS[r_ast.GetAll] = binop_variable(mt_ast.GetAll)
 
 for r_type, mt_type in iteritems(SPLATTED_BINOPS):
     RQL_TYPE_HANDLERS[r_type] = binop_splat(mt_type)

@@ -1,5 +1,6 @@
 from future.utils import iteritems
-from rethinkdb import RqlCompileError, RqlRuntimeError
+from rethinkdb import (RqlCompileError, RqlRuntimeError,
+                       ReqlNonExistenceError)
 
 from . import util
 
@@ -73,6 +74,14 @@ class RBase(object):
             'compose': (lambda x,y: 'COMPOSED')
         })
         raise RqlCompileError(msg, term, [])
+
+    def raise_rql_not_found_error(self, msg):
+        term = AttrHaving({
+            'args': (),
+            'optargs': {},
+            'compose': (lambda x,y: 'COMPOSED')
+        })
+        raise ReqlNonExistenceError(msg, term, [])
 
     def set_mock_ref(self, other):
         if hasattr(self, 'mockdb_ref'):

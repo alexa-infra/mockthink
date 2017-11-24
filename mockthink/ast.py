@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, absolute_import, print_function, division
 
-from rethinkdb import RqlRuntimeError, RqlDriverError, RqlCompileError
+from rethinkdb import (RqlRuntimeError, RqlDriverError,
+                       RqlCompileError, ReqlNonExistenceError)
 import operator
 import random
 import uuid
@@ -132,7 +133,12 @@ class RTable(BinExp):
 
 class Bracket(BinExp):
     def do_run(self, thing, thing_attr, arg, scope):
-        return thing[thing_attr]
+        try:
+            return thing[thing_attr]
+        except KeyError as k:
+            self.raise_rql_not_found_error('Key "{}" not found'.format(thing_attr))
+        except IndexError as k:
+            self.raise_rql_not_found_error('Index "{}" out of range'.format(thing_attr))
 
 class Get(BinExp):
     def do_run(self, left, right, arg, scope):
@@ -952,8 +958,11 @@ class ForEach(RBase):
     pass
 
 class RDefault(BinExp):
-    def do_run(self, left, right, arg, scope):
-        result = self.left.run(arg, scope)
+    def run(self, arg, scope):
+        try:
+            result = self.left.run(arg, scope)
+        except ReqlNonExistenceError as k:
+            result = None
         if result is None:
             return self.right.run(arg, scope)
         return result

@@ -8,7 +8,7 @@ class TestBracketMapping(MockTest):
     def get_data():
         data = [
             {'id': 1, 'animals': ['frog', 'cow']},
-            {'id': 2, 'animals': ['horse']}
+            {'id': 2, 'animals': ['horse'], 'area': 10}
         ]
         return as_db_and_table('x', 'farms', data)
 
@@ -35,3 +35,11 @@ class TestBracketMapping(MockTest):
         ).map(lambda doc: doc['id']).run(conn)
         expected = [1, 2]
         assertEqual(expected, list(res))
+
+    def test_missing(self, conn):
+        res = r.db('x').table('farms').filter(
+            lambda doc: doc['area'].default(1) > 5
+        ).run(conn)
+        expected = [2]
+        results = [doc['id'] for doc in res]
+        assertEqual(expected, results)

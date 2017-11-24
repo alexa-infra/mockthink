@@ -413,7 +413,8 @@ class WithFields(BinExp):
 
 class ConcatMap(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
-        return util.cat(*[util.map_with(map_fn, elem) for elem in sequence])
+        mapped = list(map(map_fn, sequence))
+        return util.cat(*mapped)
 
 class Skip(BinExp):
     def do_run(self, sequence, num, arg, scope):

@@ -109,6 +109,49 @@ class TestMapping(MockTest):
             err = e
         assert(isinstance(err, RqlRuntimeError))
 
+class TestConcatMap(MockTest):
+    @staticmethod
+    def get_data():
+        npc = [
+            {'id': 'joe-id', 'name': 'joe', 'tags': ['friend']},
+            {'id': 'bob-id', 'name': 'bob', 'tags': ['enemy']},
+            {'id': 'bill-id', 'name': 'bill', 'tags': ['friend', 'hero'] },
+            {'id': 'kimye-id', 'name': 'kimye', 'tags': ['enemy', 'zombie']}
+        ]
+        inventory = [
+            {'id': 1, 'npc': 'joe-id', 'item': 'shovel'},
+            {'id': 2, 'npc': 'bill-id', 'item': 'superpower'},
+            {'id': 3, 'npc': 'bob-id', 'item': 'gun'},
+            {'id': 4, 'npc': 'bob-id', 'item': 'lighter'},
+        ]
+        return {
+            'dbs': {
+                'x': {
+                    'tables': {
+                        'npc': npc,
+                        'inventory': inventory,
+                    }
+                }
+            }
+        }
+
+    def test_concat_map_objects(self, conn):
+        expected = ['friend', 'enemy', 'friend', 'hero', 'enemy', 'zombie']
+        results = r.db('x').table('npc').concat_map(
+            r.row['tags']
+        ).run(conn)
+        assertEqual(expected, results)
+
+    def test_concat_map_nested_query(self, conn):
+        expected = ['shovel', 'gun', 'lighter', 'superpower']
+        query = r.db('x').table('npc')
+        query = query.concat_map(lambda npc:
+            r.db('x').table('inventory').filter(
+                lambda row: row['npc'] == npc['id']))
+        query = query.get_field('item')
+        results = list(query.run(conn))
+        assertEqual(expected, results)
+
 class TestBracket(MockTest):
     @staticmethod
     def get_data():

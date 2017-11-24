@@ -43,6 +43,8 @@ class RBase(object):
     def find_index_func_for_scope(self, index_name, db_arg, scope):
         db_scope = self.find_db_scope(scope)
         table_scope = self.find_table_scope(scope)
+        if not db_arg:
+            db_arg = scope.get_data()
         func = db_arg.get_index_func_in_table_in_db(
             db_scope,
             table_scope,

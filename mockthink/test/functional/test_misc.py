@@ -186,6 +186,18 @@ class TestCompoundIndex(MockTest):
         expected = ['joe', 'kimye']
         assertEqual(expected, results)
 
+    def test_nested(self, conn):
+        self.create_index(conn)
+        conn.use('x')
+        query = r.table('npc').get_all('joe-id')
+        query = query.concat_map(lambda x:
+            r.table('npc').get_all([x['team'], False], index='team_current')
+        )
+        query = query.get_field('name')
+        results = list(query.run(conn))
+        expected = ['bob', 'bill']
+        assertEqual(expected, results)
+
 
 class TestBracket(MockTest):
     @staticmethod

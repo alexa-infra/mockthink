@@ -296,12 +296,16 @@ def objects_from_pods(data):
     return MockDb(dbs_by_name)
 
 class MockThinkConn(object):
-    def __init__(self, mockthink_parent):
+    def __init__(self, mockthink_parent, db=None):
         self.mockthink_parent = mockthink_parent
+        self.db = db
     def reset_data(self, data):
         self.mockthink_parent._modify_initial_data(data)
     def _start(self, rql_query, **global_optargs):
-        return self.mockthink_parent.run_query(rewrite_query(rql_query))
+        query = rewrite_query(rql_query)
+        return self.mockthink_parent.run_query(query, self.db)
+    def use(self, db_name):
+        self.db = db_name
 
 class MockThink(object):
     def __init__(self, initial_data):
@@ -312,7 +316,7 @@ class MockThink(object):
         self.initial_data = new_data
         self.reset()
 
-    def run_query(self, query):
+    def run_query(self, query, db=None):
         temp_now_time = False
 
         # RethinkDB only evaluates `r.now()` once per query,
@@ -324,7 +328,9 @@ class MockThink(object):
             self.now_time = self.get_now_time()
 
         query.mockdb_ref = self.data
-        result = query.run(self.data, Scope({}))
+        scope = Scope({})
+        scope.db = db
+        result = query.run(self.data, scope)
         changes = None
         if isinstance(result, tuple) and isinstance(result[0], MockDb):
             changes = result[1]
@@ -347,8 +353,8 @@ class MockThink(object):
         self.data = objects_from_pods(self.initial_data)
         self.data.mockthink = self
 
-    def get_conn(self):
-        conn = MockThinkConn(self)
+    def get_conn(self, db=None):
+        conn = MockThinkConn(self, db)
         return conn
 
     def set_now_time(self, dtime):
@@ -361,7 +367,7 @@ class MockThink(object):
             return rtime.now()
 
     @contextlib.contextmanager
-    def connect(self):
-        conn = MockThinkConn(self)
+    def connect(self, db=None):
+        conn = MockThinkConn(self, db)
         yield conn
         self.reset()

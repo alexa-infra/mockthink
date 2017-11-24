@@ -19,6 +19,13 @@ class Scope(object):
             raise NotInScopeErr(msg)
         return result
 
+    def get_db(self):
+        if hasattr(self, 'db'):
+            return self.db
+        if hasattr(self, 'parent'):
+            return self.parent.get_db()
+        return None
+
     def push(self, vals):
         scope = Scope(vals)
         scope.parent = self

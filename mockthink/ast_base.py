@@ -19,16 +19,16 @@ class RBase(object):
     def __init__(self, *args):
         pass
 
-    def find_table_scope(self):
+    def find_table_scope(self, scope):
         result = None
         if hasattr(self, 'left'):
-            result = self.left.find_table_scope()
+            result = self.left.find_table_scope(scope)
         return result
 
-    def find_db_scope(self):
+    def find_db_scope(self, scope):
         result = None
         if hasattr(self, 'left'):
-            result = self.left.find_db_scope()
+            result = self.left.find_db_scope(scope)
         return result
 
     def has_table_scope(self):
@@ -40,11 +40,9 @@ class RBase(object):
                     break
         return result
 
-    def find_index_func_for_scope(self, index_name, db_arg):
-        table = self.find_table_scope()
-        db = self.find_db_scope()
-        db_scope = self.find_db_scope()
-        table_scope = self.find_table_scope()
+    def find_index_func_for_scope(self, index_name, db_arg, scope):
+        db_scope = self.find_db_scope(scope)
+        table_scope = self.find_table_scope(scope)
         func = db_arg.get_index_func_in_table_in_db(
             db_scope,
             table_scope,

@@ -13,7 +13,6 @@ from past.utils import old_div
 from past.builtins import basestring
 
 from . import util, joins, rtime
-from .scope import Scope
 
 from . import ast_base
 from .ast_base import RBase, MonExp, BinExp, Ternary, ByFuncBase
@@ -56,8 +55,9 @@ class RDb(MonExp):
             db = arg
         return db.get_db(db_name)
 
-    def find_db_scope(self):
-        return self.left.run(None, Scope({}))
+    def find_db_scope(self, scope):
+        db_scope = scope.push({})
+        return self.left.run(None, db_scope)
 
 class TypeOf(MonExp):
     def do_run(self, val, arg, scope):
@@ -122,8 +122,9 @@ class Json(MonExp):
         return json.loads(json_str)
 
 class RTable(BinExp):
-    def find_table_scope(self):
-        return self.right.run(None, Scope({}))
+    def find_table_scope(self, scope):
+        table_scope = scope.push({})
+        return self.right.run(None, table_scope)
 
     def has_table_scope(self):
         return True
@@ -161,7 +162,8 @@ class GetAll(BinExp):
         if 'index' in self.optargs and self.optargs['index'] != 'id':
             index_func, is_multi = self.find_index_func_for_scope(
                 self.optargs['index'],
-                arg
+                arg,
+                scope
             )
             if isinstance(index_func, RFunc):
                 map_fn = lambda d: index_func.run([d], scope)
@@ -262,8 +264,8 @@ class UpdateBase(object):
 
     def update_table(self, result_sequence, arg, scope):
         settings = self.get_update_settings()
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
         result_sequence = util.ensure_list(result_sequence)
         result, report = arg.update_by_id_in_table_in_db(current_db, current_table, result_sequence)
         if not settings['return_changes']:
@@ -296,8 +298,8 @@ class Delete(MonExp):
         return util.extend(defaults, self.optargs)
 
     def do_run(self, sequence, arg, scope):
-        current_table = self.find_table_scope()
-        current_db = self.find_db_scope()
+        current_table = self.find_table_scope(scope)
+        current_db = self.find_db_scope(scope)
         if isinstance(sequence, dict):
             sequence = [sequence]
         else:
@@ -317,8 +319,8 @@ class Insert(BinExp):
         return util.extend(defaults, self.optargs)
 
     def do_run(self, sequence, to_insert, arg, scope):
-        current_table = self.find_table_scope()
-        current_db = self.find_db_scope()
+        current_table = self.find_table_scope(scope)
+        current_db = self.find_db_scope(scope)
         if isinstance(to_insert, dict):
             to_insert = [to_insert]
         generated_keys = list()
@@ -617,17 +619,17 @@ class ContainsFuncs(RBase):
 
 class TableCreate(BinExp):
     def do_run(self, left, table_name, arg, scope):
-        db_name = self.find_db_scope()
+        db_name = self.find_db_scope(scope)
         return arg.create_table_in_db(db_name, table_name)
 
 class TableDrop(BinExp):
     def do_run(self, db, table_name, arg, scope):
-        db_name = self.find_db_scope()
+        db_name = self.find_db_scope(scope)
         return arg.drop_table_in_db(db_name, table_name)
 
 class TableList(MonExp):
     def do_run(self, db, arg, scope):
-        db_name = self.find_db_scope()
+        db_name = self.find_db_scope(scope)
         return arg.list_tables_in_db(db_name)
 
 
@@ -652,8 +654,8 @@ class DbList(RBase):
 class IndexCreateByField(BinExp):
     def do_run(self, sequence, field_name, arg, scope):
         index_func = util.getter(field_name)
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
         multi = self.optargs.get('multi', False)
         return arg.create_index_in_table_in_db(
             current_db,
@@ -674,8 +676,8 @@ class IndexCreateByFunc(RBase):
         sequence = self.left.run(arg, scope)
         index_name = self.middle.run(arg, scope)
         index_func = self.right
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
         multi = self.optargs.get('multi', False)
         return arg.create_index_in_table_in_db(
             current_db,
@@ -687,8 +689,8 @@ class IndexCreateByFunc(RBase):
 
 class IndexRename(Ternary):
     def do_run(self, sequence, old_name, new_name, arg, scope):
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
 
         exists = arg.index_exists_in_table_in_db(
             current_db,
@@ -709,8 +711,8 @@ class IndexRename(Ternary):
 class IndexDrop(BinExp):
     def do_run(self, sequence, index_name, arg, scope):
         assert(isinstance(self.left, RTable))
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
 
         return arg.drop_index_in_table_in_db(
             current_db,
@@ -722,8 +724,8 @@ class IndexList(MonExp):
     def do_run(self, table, arg, scope):
         assert(isinstance(self.left, RTable))
 
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
         return arg.list_indexes_in_table_in_db(
             current_db,
             current_table
@@ -738,8 +740,8 @@ class IndexWaitAll(MonExp):
 class IndexWaitOne(BinExp):
     def do_run(self, table, index_name, arg, scope):
         assert(isinstance(self.left, RTable))
-        current_db = self.find_db_scope()
-        current_table = self.find_table_scope()
+        current_db = self.find_db_scope(scope)
+        current_table = self.find_table_scope(scope)
         exists = arg.index_exists_in_table_in_db(
             current_db,
             current_table,
@@ -814,7 +816,8 @@ class Between(Ternary):
         else:
             map_fn, _ = self.find_index_func_for_scope(
                 options['index'],
-                arg
+                arg,
+                scope
             )
 
         left_test, right_test = operators_for_bounds(

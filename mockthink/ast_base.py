@@ -20,16 +20,16 @@ class RBase(object):
     def __init__(self, *args):
         pass
 
-    def find_table_scope(self, scope):
+    def find_table_scope(self):
         result = None
         if hasattr(self, 'left'):
-            result = self.left.find_table_scope(scope)
+            result = self.left.find_table_scope()
         return result
 
-    def find_db_scope(self, scope):
+    def find_db_scope(self):
         result = None
         if hasattr(self, 'left'):
-            result = self.left.find_db_scope(scope)
+            result = self.left.find_db_scope()
         return result
 
     def has_table_scope(self):
@@ -41,11 +41,9 @@ class RBase(object):
                     break
         return result
 
-    def find_index_func_for_scope(self, index_name, db_arg, scope):
-        db_scope = self.find_db_scope(scope)
-        table_scope = self.find_table_scope(scope)
-        if not db_arg:
-            db_arg = scope.get_data()
+    def find_index_func_for_scope(self, index_name, db_arg):
+        db_scope = self.find_db_scope()
+        table_scope = self.find_table_scope()
         func = db_arg.get_index_func_in_table_in_db(
             db_scope,
             table_scope,
@@ -84,10 +82,6 @@ class RBase(object):
         })
         raise ReqlNonExistenceError(msg, term, [])
 
-    def set_mock_ref(self, other):
-        if hasattr(self, 'mockdb_ref'):
-            other.mockdb_ref = self.mockdb_ref
-
 class RDatum(RBase):
     def __init__(self, val, optargs={}):
         self.val = val
@@ -110,13 +104,12 @@ class RFunc(RBase):
         params = ", ".join(self.param_names)
         return "<RFunc: [%s] { %s }>" % (params, self.body)
 
-    def run(self, args, scope):
-        self.set_mock_ref(self.body)
+    def run(self, args, context, scope):
         if not isinstance(args, list):
             args = [args]
         bound = util.as_obj(zip(self.param_names, args))
         call_scope = scope.push(bound)
-        return self.body.run(None, call_scope)
+        return self.body.run(context, call_scope)
 
 class MonExp(RBase):
     def __init__(self, left, optargs={}):
@@ -131,7 +124,6 @@ class MonExp(RBase):
         raise NotImplementedError("method do_run not defined in class %s" % self.__class__.__name__)
 
     def run(self, arg, scope):
-        self.set_mock_ref(self.left)
         left = self.left.run(arg, scope)
         if isinstance(left, GroupResults):
             ret = GroupResults()
@@ -155,8 +147,6 @@ class BinExp(RBase):
         raise NotImplementedError("method do_run not defined in class %s" % self.__class__.__name__)
 
     def run(self, arg, scope):
-        self.set_mock_ref(self.left)
-        self.set_mock_ref(self.right)
         left = self.left.run(arg, scope)
         right = self.right.run(arg, scope)
         if isinstance(left, GroupResults):
@@ -178,8 +168,6 @@ class Ternary(RBase):
         raise NotImplementedError("method do_run not defined in class %s" % self.__class__.__name__)
 
     def run(self, arg, scope):
-        for part in ('left', 'middle', 'right'):
-            self.set_mock_ref(getattr(self, part))
         left = self.left.run(arg, scope)
         middle = self.middle.run(arg, scope)
         right = self.right.run(arg, scope)
@@ -200,10 +188,8 @@ class ByFuncBase(RBase):
         raise NotImplementedError("method do_run not defined in class %s" % self.__class__.__name__)
 
     def run(self, arg, scope):
-        self.set_mock_ref(self.left)
-        self.set_mock_ref(self.right)
         left = self.left.run(arg, scope)
-        map_fn = lambda x: self.right.run(x, scope)
+        map_fn = lambda x: self.right.run(x, arg, scope)
         if isinstance(left, GroupResults):
             ret = GroupResults()
             for k, v in left.items():
@@ -218,7 +204,6 @@ class MakeObj(RBase):
     def run(self, arg, scope):
         out = {}
         for k, v in iteritems(self.vals):
-            self.set_mock_ref(v)
             out[k] = v.run(arg, scope)
         return out
 
@@ -229,7 +214,6 @@ class MakeArray(RBase):
     def run(self, arg, scope):
         out = []
         for elem in self.vals:
-            self.set_mock_ref(elem)
             out.append(elem.run(arg, scope))
         return out
 

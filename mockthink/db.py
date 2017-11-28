@@ -193,17 +193,24 @@ class MockDbData(object):
         return MockDbData(tables)
 
 class MockDb(object):
-    def __init__(self, dbs_by_name):
+    def __init__(self, dbs_by_name, mockthink):
         self.dbs_by_name = dbs_by_name
+        self.mockthink = mockthink
 
     def get_db(self, db_name):
+        if db_name is None:
+            db_name = self.get_default_db()
+        assert db_name is not None
         return self.dbs_by_name[db_name]
 
     def set_db(self, db_name, db_data_instance):
+        if db_name is None:
+            db_name = self.get_default_db()
+        assert db_name is not None
         assert(isinstance(db_data_instance, MockDbData))
         dbs_by_name = util.obj_clone(self.dbs_by_name)
         dbs_by_name[db_name] = db_data_instance
-        return MockDb(dbs_by_name)
+        return MockDb(dbs_by_name, self.mockthink)
 
     def create_table_in_db(self, db_name, table_name):
         new_db = self.get_db(db_name)
@@ -222,7 +229,8 @@ class MockDb(object):
         return self.set_db(db_name, MockDbData({}))
 
     def drop_db(self, db_name):
-        return MockDb(util.without([db_name], self.dbs_by_name))
+        return MockDb(util.without([db_name], self.dbs_by_name),
+                      self.mockthink)
 
     def list_dbs(self):
         return self.dbs_by_name.keys()
@@ -279,6 +287,9 @@ class MockDb(object):
     def get_now_time(self):
         return self.mockthink.get_now_time()
 
+    def get_default_db(self):
+        return self.mockthink.get_default_db()
+
 def objects_from_pods(data):
     dbs_by_name = {}
     for db_name, db_data in iteritems(data['dbs']):
@@ -293,7 +304,7 @@ def objects_from_pods(data):
                 table_name, table_data, indexes
             )
         dbs_by_name[db_name] = MockDbData(tables_by_name)
-    return MockDb(dbs_by_name)
+    return MockDb(dbs_by_name, None)
 
 class MockThinkConn(object):
     def __init__(self, mockthink_parent, db=None):
@@ -317,34 +328,40 @@ class MockThink(object):
         self.reset()
 
     def run_query(self, query, db=None):
-        temp_now_time = False
+        try:
+            temp_now_time = False
+            temp_default_db = False
 
-        # RethinkDB only evaluates `r.now()` once per query,
-        # so it should have the same result each time within that query.
-        # But we don't do anything if now_time has already been set.
+            # RethinkDB only evaluates `r.now()` once per query,
+            # so it should have the same result each time within that query.
+            # But we don't do anything if now_time has already been set.
 
-        if not hasattr(self, 'now_time'):
-            temp_now_time = True
-            self.now_time = self.get_now_time()
+            if not hasattr(self, 'now_time'):
+                temp_now_time = True
+                self.now_time = self.get_now_time()
 
-        query.mockdb_ref = self.data
-        scope = Scope({})
-        scope.db = db
-        scope.data = self.data
-        result = query.run(self.data, scope)
-        changes = None
-        if isinstance(result, tuple) and isinstance(result[0], MockDb):
-            changes = result[1]
-            result = result[0]
-        if isinstance(result, MockDb):
-            self.data = result
-            result = changes
-        elif isinstance(result, MockTableData):
-            result = result.get_rows()
+            if not hasattr(self, 'default_db'):
+                temp_default_db = True
+                self.default_db = db
 
-        if temp_now_time:
-            delattr(self, 'now_time')
-        return result
+            scope = Scope({})
+            result = query.run(self.data, scope)
+            changes = None
+            if isinstance(result, tuple) and isinstance(result[0], MockDb):
+                changes = result[1]
+                result = result[0]
+            if isinstance(result, MockDb):
+                self.data = result
+                result = changes
+            elif isinstance(result, MockTableData):
+                result = result.get_rows()
+
+            return result
+        finally:
+            if temp_now_time:
+                delattr(self, 'now_time')
+            if temp_default_db:
+                delattr(self, 'default_db')
 
     def pprint_query_ast(self, query):
         query = "%s" % query
@@ -366,6 +383,11 @@ class MockThink(object):
             return self.now_time
         else:
             return rtime.now()
+
+    def get_default_db(self):
+        attr = getattr(self, 'default_db', None)
+        assert attr is not None
+        return attr
 
     @contextlib.contextmanager
     def connect(self, db=None):

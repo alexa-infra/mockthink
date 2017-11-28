@@ -5,6 +5,10 @@ from collections import defaultdict
 from future.utils import iteritems, old_div
 
 
+class GroupResults(defaultdict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(lambda: [], *args, **kwargs)
+
 def curry2(func):
     def out(x, *args):
         if len(args):
@@ -242,7 +246,7 @@ def min_mapped(func, sequence):
 
 @curry2
 def group_by_func(func, sequence):
-    output = defaultdict(lambda: [])
+    output = GroupResults()
     for elem in sequence:
         output[func(elem)].append(elem)
     return output

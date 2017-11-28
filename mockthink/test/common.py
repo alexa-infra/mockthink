@@ -40,6 +40,11 @@ def assertEqual(x, y, msg=''):
     assert x == y
 
 
+def assertCountEqual(x, y, msg=''):
+    case = unittest.TestCase()
+    case.assertCountEqual(x, y)
+
+
 def as_db_and_table(db_name, table_name, data):
     return {
         'dbs': {

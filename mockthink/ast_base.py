@@ -3,6 +3,7 @@ from rethinkdb import (RqlCompileError, RqlRuntimeError,
                        ReqlNonExistenceError)
 
 from . import util
+from .util import GroupResults
 
 
 class AttrHaving(object):
@@ -132,6 +133,11 @@ class MonExp(RBase):
     def run(self, arg, scope):
         self.set_mock_ref(self.left)
         left = self.left.run(arg, scope)
+        if isinstance(left, GroupResults):
+            ret = GroupResults()
+            for k, v in left.items():
+                ret[k] = self.do_run(v, arg, scope)
+            return ret
         return self.do_run(left, arg, scope)
 
 
@@ -153,6 +159,11 @@ class BinExp(RBase):
         self.set_mock_ref(self.right)
         left = self.left.run(arg, scope)
         right = self.right.run(arg, scope)
+        if isinstance(left, GroupResults):
+            ret = GroupResults()
+            for k, v in left.items():
+                ret[k] = self.do_run(v, right, arg, scope)
+            return ret
         return self.do_run(left, right, arg, scope)
 
 
@@ -172,6 +183,11 @@ class Ternary(RBase):
         left = self.left.run(arg, scope)
         middle = self.middle.run(arg, scope)
         right = self.right.run(arg, scope)
+        if isinstance(left, GroupResults):
+            ret = GroupResults()
+            for k, v in left.items():
+                ret[k] = self.do_run(v, middle, right, arg, scope)
+            return ret
         return self.do_run(left, middle, right, arg, scope)
 
 class ByFuncBase(RBase):
@@ -188,6 +204,11 @@ class ByFuncBase(RBase):
         self.set_mock_ref(self.right)
         left = self.left.run(arg, scope)
         map_fn = lambda x: self.right.run(x, scope)
+        if isinstance(left, GroupResults):
+            ret = GroupResults()
+            for k, v in left.items():
+                ret[k] = self.do_run(v, map_fn, arg, scope)
+            return ret
         return self.do_run(left, map_fn, arg, scope)
 
 class MakeObj(RBase):

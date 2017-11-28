@@ -13,6 +13,7 @@ from past.utils import old_div
 from past.builtins import basestring
 
 from . import util, joins, rtime
+from .util import GroupResults
 
 from . import ast_base
 from .ast_base import RBase, MonExp, BinExp, Ternary, ByFuncBase
@@ -580,12 +581,14 @@ class Do(ByFuncBase):
         return func(left)
 
 class UnGroup(MonExp):
+    def run(self, arg, scope):
+        self.set_mock_ref(self.left)
+        left = self.left.run(arg, scope)
+        return self.do_run(left, arg, scope)
+
     def do_run(self, grouped_seq, arg, scope):
-        for group_name, group_vals in iteritems(grouped_seq):
-            yield {
-                'group': group_name,
-                'reduction': group_vals
-            }
+        assert isinstance(grouped_seq, GroupResults)
+        return list(dict(group=k, reduction=v) for k, v in grouped_seq.items())
 
 class Branch(RBase):
     def __init__(self, test, if_true, if_false, optargs={}):

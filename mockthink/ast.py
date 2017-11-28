@@ -6,6 +6,7 @@ import operator
 import random
 import uuid
 import json
+from datetime import datetime, timedelta
 import dateutil.parser
 from pprint import pprint
 from future.utils import iteritems, text_type
@@ -206,6 +207,8 @@ class GetAll(BinExp):
 
 class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):
+        if isinstance(left, datetime) and isinstance(right, int):
+            right = timedelta(seconds=right)
         return self.__class__.binop(left, right)
 
 class Gt(BinOp):

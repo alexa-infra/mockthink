@@ -101,6 +101,19 @@ class TestDateTimeGetters(MockTest):
         assert result < now
         assert result > now - delta
 
+    def test_time_ops(self, conn):
+        now = datetime.datetime.utcnow()
+        now = now.replace(tzinfo=r.make_timezone('00:00'))
+        result = r.now().sub(3600).run(conn)
+        assert(isinstance(result, datetime.datetime))
+        assert(isinstance(result.tzinfo, RqlTzinfo))
+        assert result < now
+        result = r.now().add(3600).run(conn)
+        assert(isinstance(result, datetime.datetime))
+        assert(isinstance(result.tzinfo, RqlTzinfo))
+        assert result > now
+
+
 class TestMoreTime(MockTest):
     @staticmethod
     def get_data():

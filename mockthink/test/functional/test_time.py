@@ -95,6 +95,11 @@ class TestDateTimeGetters(MockTest):
         result = r.now().run(conn)
         assert(isinstance(result, datetime.datetime))
         assert(isinstance(result.tzinfo, RqlTzinfo))
+        now = datetime.datetime.utcnow()
+        now = now.replace(tzinfo=r.make_timezone('00:00'))
+        delta = datetime.timedelta(minutes=1)
+        assert result < now
+        assert result > now - delta
 
 class TestMoreTime(MockTest):
     @staticmethod

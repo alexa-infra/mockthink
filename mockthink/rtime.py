@@ -17,7 +17,7 @@ def make_time(year, month, day, hour=0, minute=0, second=0, timezone=None):
     return datetime.datetime(year, month, day, hour, minute, second, tzinfo=timezone)
 
 def now():
-    dtime = datetime.datetime.now()
+    dtime = datetime.datetime.utcnow()
     return dtime.replace(tzinfo=rethinkdb.make_timezone('00:00'))
 
 def create_rql_timezone(timezone_string):

@@ -34,58 +34,58 @@ def handle_generic_zerop(Mt_Constructor, node):
 
 @util.curry2
 def handle_generic_monop(Mt_Constructor, node):
-    return Mt_Constructor(type_dispatch(node.args[0]), optargs=process_optargs(node))
+    return Mt_Constructor(type_dispatch(node._args[0]), optargs=process_optargs(node))
 
 @util.curry2
 def handle_generic_binop(Mt_Constructor, node):
     return Mt_Constructor(
-        type_dispatch(node.args[0]),
-        type_dispatch(node.args[1]),
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
         optargs=process_optargs(node)
     )
 
 @util.curry2
 def handle_generic_binop_opt(Mt_Constructor, node):
     return Mt_Constructor(
-        type_dispatch(node.args[0]),
-        type_dispatch(node.args[1]) if len(node.args) == 2 else None,
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]) if len(node._args) == 2 else None,
         optargs=process_optargs(node)
     )
 
 @util.curry2
 def handle_generic_binop_poly_2(mt_type_map, node):
     for r_type, m_type in iteritems(mt_type_map):
-        if isinstance(node.args[1], r_type):
+        if isinstance(node._args[1], r_type):
             Mt_Constructor = m_type
             break
     return Mt_Constructor(
-        type_dispatch(node.args[0]),
-        type_dispatch(node.args[1]),
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
         optargs=process_optargs(node)
     )
 
 @util.curry2
 def handle_generic_ternop(Mt_Constructor, node):
-    assert(len(node.args) == 3)
-    return Mt_Constructor(*[type_dispatch(arg) for arg in node.args], optargs=process_optargs(node))
+    assert(len(node._args) == 3)
+    return Mt_Constructor(*[type_dispatch(arg) for arg in node._args], optargs=process_optargs(node))
 
 @util.curry2
 def handle_generic_aggregation(mt_type_map, node):
     optargs = process_optargs(node)
-    if len(node.args) == 1:
+    if len(node._args) == 1:
         Mt_Constructor = mt_type_map[1]
         return Mt_Constructor(
-            type_dispatch(node.args[0]),
+            type_dispatch(node._args[0]),
             optargs=optargs
         )
     else:
         for r_type, m_type in iteritems(mt_type_map[2]):
-            if isinstance(node.args[1], r_type):
+            if isinstance(node._args[1], r_type):
                 Mt_Constructor = m_type
                 break
     return Mt_Constructor(
-        type_dispatch(node.args[0]),
-        type_dispatch(node.args[1]),
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
         optargs=optargs
     )
 
@@ -98,7 +98,7 @@ GENERIC_BY_ARITY = {
 
 @util.curry2
 def handle_n_ary(arity_type_map, node):
-    arg_len = len(node.args)
+    arg_len = len(node._args)
     return GENERIC_BY_ARITY[arg_len](arity_type_map[arg_len], node)
 
 def makearray_of_datums(datum_list):
@@ -112,7 +112,7 @@ def makearray_of_datums(datum_list):
 
 @util.curry2
 def binop_splat(Mt_Constructor, node):
-    args = node.args
+    args = node._args
     left = type_dispatch(args[0])
     if isinstance(args[1], r_ast.MakeArray):
         right = type_dispatch(args[1])
@@ -122,7 +122,7 @@ def binop_splat(Mt_Constructor, node):
 
 @util.curry2
 def binop_variable(Mt_Constructor, node):
-    args = node.args
+    args = node._args
     left = type_dispatch(args[0])
     right = makearray_of_datums(args[1:])
     return Mt_Constructor(left, right, optargs=process_optargs(node))
@@ -373,11 +373,11 @@ def plain_val_of_datum(datum_node):
 
 def plain_list_of_make_array(make_array_instance):
     assert(isinstance(make_array_instance, r_ast.MakeArray))
-    return map(plain_val_of_datum, make_array_instance.args)
+    return map(plain_val_of_datum, make_array_instance._args)
 
 @handles_type(r_ast.MakeArray)
 def handle_make_array(node):
-    return mt_ast.MakeArray([type_dispatch(elem) for elem in node.args])
+    return mt_ast.MakeArray([type_dispatch(elem) for elem in node._args])
 
 @handles_type(r_ast.MakeObj)
 def handle_make_obj(node):
@@ -385,8 +385,8 @@ def handle_make_obj(node):
 
 @handles_type(r_ast.Func)
 def handle_func(node):
-    func_params = plain_list_of_make_array(node.args[0])
-    func_body = node.args[1]
+    func_params = plain_list_of_make_array(node._args[0])
+    func_body = node._args[1]
     if contains_ivar(func_body):
         replace_implicit_vars(func_params[0], func_body)
     func_body = type_dispatch(func_body)
@@ -395,9 +395,9 @@ def handle_func(node):
 @handles_type(r_ast.OrderBy)
 def handle_order_by(node):
     optargs = process_optargs(node)
-    left = type_dispatch(node.args[0])
+    left = type_dispatch(node._args[0])
     right = []
-    for elem in node.args[1:]:
+    for elem in node._args[1:]:
         if isinstance(elem, r_ast.Datum):
             right.append(mt_ast.Asc(type_dispatch(elem)))
         else:
@@ -413,9 +413,9 @@ def handle_order_by(node):
 @handles_type(r_ast.OffsetsOf)
 def handle_offsets_of(node):
     optargs = process_optargs(node)
-    left = type_dispatch(node.args[0])
-    right = type_dispatch(node.args[1])
-    if isinstance(node.args[1], r_ast.Func):
+    left = type_dispatch(node._args[0])
+    right = type_dispatch(node._args[1])
+    if isinstance(node._args[1], r_ast.Func):
         return mt_ast.OffsetsOfFunc(
             left, right, optargs=optargs
         )
@@ -426,19 +426,19 @@ def handle_offsets_of(node):
 
 @handles_type(r_ast.FunCall)
 def handle_funcall(node):
-    if isinstance(node.args[0], r_ast.Func):
-        func = type_dispatch(node.args[0])
-        rest = node.args[1:]
+    if isinstance(node._args[0], r_ast.Func):
+        func = type_dispatch(node._args[0])
+        rest = node._args[1:]
     else:
-        last = len(node.args) - 1
-        func = type_dispatch(node.args[last])
-        rest = node.args[0:last]
+        last = len(node._args) - 1
+        func = type_dispatch(node._args[last])
+        rest = node._args[0:last]
     rest = mt_ast.MakeArray([type_dispatch(elem) for elem in rest])
     return mt_ast.Do(rest, func)
 
 @handles_type(r_ast.Time)
 def handle_time(node):
-    arg = makearray_of_datums(node.args)
+    arg = makearray_of_datums(node._args)
     return mt_ast.Time(arg)
 
 @util.curry2
@@ -453,21 +453,21 @@ def is_instance_of_any(type_tuple, to_test):
 @handles_type(r_ast.Count)
 def handle_count(node):
     optargs = process_optargs(node)
-    left = type_dispatch(node.args[0])
-    if len(node.args) == 1:
+    left = type_dispatch(node._args[0])
+    if len(node._args) == 1:
         return mt_ast.Count1(
             left,
             optargs=optargs
         )
     else:
-        right = type_dispatch(node.args[1])
-        if is_instance_of_any((r_ast.MakeObj, r_ast.Datum, r_ast.MakeArray), node.args[1]):
+        right = type_dispatch(node._args[1])
+        if is_instance_of_any((r_ast.MakeObj, r_ast.Datum, r_ast.MakeArray), node._args[1]):
             return mt_ast.CountByEq(
                 left,
                 right,
                 optargs=optargs
             )
-        elif isinstance(node.args[1], r_ast.Func):
+        elif isinstance(node._args[1], r_ast.Func):
             return mt_ast.CountByFunc(
                 left,
                 right,
@@ -478,10 +478,10 @@ def handle_count(node):
 
 @handles_type(r_ast.Contains)
 def handle_contains(node):
-    sequence = type_dispatch(node.args[0])
+    sequence = type_dispatch(node._args[0])
     optargs = process_optargs(node)
-    rest = makearray_of_datums(node.args[1:])
-    if isinstance(node.args[1], r_ast.Func):
+    rest = makearray_of_datums(node._args[1:])
+    if isinstance(node._args[1], r_ast.Func):
         return mt_ast.ContainsFuncs(sequence, rest, optargs=optargs)
     else:
         return mt_ast.ContainsElems(sequence, rest, optargs=optargs)
@@ -506,10 +506,10 @@ def is_ivar(node):
     return isinstance(node, r_ast.ImplicitVar)
 
 def replace_implicit_vars(arg_symbol, node):
-    for index in range(0, len(node.args)):
-        elem = node.args[index]
+    for index in range(0, len(node._args)):
+        elem = node._args[index]
         if is_ivar(elem):
-            node.args[index] = r_ast.Var(r_ast.Datum(arg_symbol))
+            node._args[index] = r_ast.Var(r_ast.Datum(arg_symbol))
         else:
             replace_implicit_vars(arg_symbol, elem)
     for key, val in iteritems(node.optargs):

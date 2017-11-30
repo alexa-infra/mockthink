@@ -1,9 +1,6 @@
-from __future__ import print_function, absolute_import, division, unicode_literals
-
 import unittest
 
 import rethinkdb as r
-from future.utils import iteritems
 
 import mockthink.util as util
 from mockthink.db import MockThinkConn
@@ -15,9 +12,9 @@ def real_stock_data_load(data, connection):
             # This db is special and can't be deleted.
             continue
         r.db_drop(db).run(connection)
-    for db_name, db_data in iteritems(data['dbs']):
+    for db_name, db_data in data['dbs'].items():
         r.db_create(db_name).run(connection)
-        for table_name, table_data in iteritems(db_data['tables']):
+        for table_name, table_data in db_data['tables'].items():
             r.db(db_name).table_create(table_name).run(connection)
             r.db(db_name).table(table_name).insert(table_data).run(connection)
 

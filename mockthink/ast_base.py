@@ -1,4 +1,3 @@
-from future.utils import iteritems
 from rethinkdb import (RqlCompileError, RqlRuntimeError,
                        ReqlNonExistenceError)
 
@@ -8,7 +7,7 @@ from .util import GroupResults
 
 class AttrHaving(object):
     def __init__(self, attrs):
-        for k, v in iteritems(attrs):
+        for k, v in attrs.items():
             setattr(self, k, v)
 
 
@@ -203,7 +202,7 @@ class MakeObj(RBase):
 
     def run(self, arg, scope):
         out = {}
-        for k, v in iteritems(self.vals):
+        for k, v in self.vals.items():
             out[k] = v.run(arg, scope)
         return out
 
@@ -221,7 +220,7 @@ class LITERAL_OBJECT(dict):
     @staticmethod
     def from_dict(a_dict):
         out = LITERAL_OBJECT()
-        for k, v in iteritems(a_dict):
+        for k, v in a_dict.items():
             out[k] = v
         return out
 
@@ -234,7 +233,7 @@ def contains_literals(to_check):
     if is_literal(to_check):
         return True
     elif isinstance(to_check, dict):
-        for k, v in iteritems(to_check):
+        for k, v in to_check.items():
             if is_literal(v):
                 return True
             elif contains_literals(v):
@@ -251,11 +250,11 @@ def contains_literals(to_check):
 
 def has_nested_literal(to_check):
     if isinstance(to_check, LITERAL_OBJECT):
-        for k, v in iteritems(to_check):
+        for k, v in to_check.items():
             if contains_literals(v):
                 return True
     elif isinstance(to_check, dict):
-        for k, v in iteritems(to_check):
+        for k, v in to_check.items():
             if has_nested_literal(v):
                 return True
     elif isinstance(to_check, LITERAL_LIST):
@@ -280,7 +279,7 @@ def rql_merge_with(ext_with, to_extend):
         if has_nested_literal(ext_with):
             raise RqlRuntimeError('No nested r.literal()!')
 
-    for k, v in iteritems(ext_with):
+    for k, v in ext_with.items():
         if is_literal(v):
             if has_nested_literal(v):
                 raise RqlRuntimeError('No nested r.literal()!')

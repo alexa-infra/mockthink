@@ -1,6 +1,4 @@
 import rethinkdb.ast as r_ast
-from future.utils import iteritems
-from past.builtins import map
 
 from . import ast as mt_ast
 from . import util
@@ -25,7 +23,7 @@ def handles_type(rql_type, func):
 
 def process_optargs(node):
     if hasattr(node, 'optargs') and node.optargs:
-        return {k: plain_val_of_datum(v) for k, v in iteritems(node.optargs)}
+        return {k: plain_val_of_datum(v) for k, v in node.optargs.items()}
     return {}
 
 @util.curry2
@@ -54,7 +52,7 @@ def handle_generic_binop_opt(Mt_Constructor, node):
 
 @util.curry2
 def handle_generic_binop_poly_2(mt_type_map, node):
-    for r_type, m_type in iteritems(mt_type_map):
+    for r_type, m_type in mt_type_map.items():
         if isinstance(node._args[1], r_type):
             Mt_Constructor = m_type
             break
@@ -79,7 +77,7 @@ def handle_generic_aggregation(mt_type_map, node):
             optargs=optargs
         )
     else:
-        for r_type, m_type in iteritems(mt_type_map[2]):
+        for r_type, m_type in mt_type_map[2].items():
             if isinstance(node._args[1], r_type):
                 Mt_Constructor = m_type
                 break
@@ -338,30 +336,30 @@ NORMAL_AGGREGATIONS = {
 
 RQL_TYPE_HANDLERS[r_ast.Table] = handle_generic_binop_opt(mt_ast.RTable)
 
-for r_type, mt_type in iteritems(NORMAL_ZEROPS):
+for r_type, mt_type in NORMAL_ZEROPS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_zerop(mt_type)
 
-for r_type, mt_type in iteritems(NORMAL_MONOPS):
+for r_type, mt_type in NORMAL_MONOPS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_monop(mt_type)
 
-for r_type, mt_type in iteritems(NORMAL_BINOPS):
+for r_type, mt_type in NORMAL_BINOPS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_binop(mt_type)
 
-for r_type, arg_2_map in iteritems(BINOPS_BY_ARG_2_TYPE):
+for r_type, arg_2_map in BINOPS_BY_ARG_2_TYPE.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_binop_poly_2(arg_2_map)
 
 RQL_TYPE_HANDLERS[r_ast.GetAll] = binop_variable(mt_ast.GetAll)
 
-for r_type, mt_type in iteritems(SPLATTED_BINOPS):
+for r_type, mt_type in SPLATTED_BINOPS.items():
     RQL_TYPE_HANDLERS[r_type] = binop_splat(mt_type)
 
-for r_type, mt_type in iteritems(NORMAL_TERNOPS):
+for r_type, mt_type in NORMAL_TERNOPS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_ternop(mt_type)
 
-for r_type, mt_type in iteritems(OPS_BY_ARITY):
+for r_type, mt_type in OPS_BY_ARITY.items():
     RQL_TYPE_HANDLERS[r_type] = handle_n_ary(mt_type)
 
-for r_type, type_map in iteritems(NORMAL_AGGREGATIONS):
+for r_type, type_map in NORMAL_AGGREGATIONS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_aggregation(type_map)
 
 @handles_type(r_ast.Datum)
@@ -373,7 +371,7 @@ def plain_val_of_datum(datum_node):
 
 def plain_list_of_make_array(make_array_instance):
     assert(isinstance(make_array_instance, r_ast.MakeArray))
-    return map(plain_val_of_datum, make_array_instance._args)
+    return list(map(plain_val_of_datum, make_array_instance._args))
 
 @handles_type(r_ast.MakeArray)
 def handle_make_array(node):
@@ -381,7 +379,7 @@ def handle_make_array(node):
 
 @handles_type(r_ast.MakeObj)
 def handle_make_obj(node):
-    return mt_ast.MakeObj({k: type_dispatch(v) for k, v in iteritems(node.optargs)})
+    return mt_ast.MakeObj({k: type_dispatch(v) for k, v in node.optargs.items()})
 
 @handles_type(r_ast.Func)
 def handle_func(node):
@@ -512,7 +510,7 @@ def replace_implicit_vars(arg_symbol, node):
             node._args[index] = r_ast.Var(r_ast.Datum(arg_symbol))
         else:
             replace_implicit_vars(arg_symbol, elem)
-    for key, val in iteritems(node.optargs):
+    for key, val in node.optargs.items():
         if is_ivar(val):
             node.optargs[key] = r_ast.Var(r_ast.Datum(arg_symbol))
         else:

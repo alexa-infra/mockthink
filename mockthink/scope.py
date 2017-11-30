@@ -1,4 +1,6 @@
-from __future__ import print_function
+from pprint import pprint
+
+
 class NotInScopeErr(Exception):
     def __init__(self, msg):
         print(msg)
@@ -25,7 +27,7 @@ class Scope(object):
         return scope
 
     def get_flattened(self):
-        vals = {k: v for k, v in iteritems(self.values)}
+        vals = {k: v for k, v in self.values.items()}
         if not hasattr(self, 'parent'):
             return vals
         parent_vals = self.parent.get_flattened()

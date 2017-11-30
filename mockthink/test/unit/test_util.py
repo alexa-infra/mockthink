@@ -1,11 +1,6 @@
-from future.utils import PY2, iteritems
-
 from mockthink.test.common import assertEqual
 
-if PY2:
-    import mock
-else:
-    from unittest import mock
+from unittest import mock
 import unittest
 from pprint import pprint
 from ... import util
@@ -180,7 +175,7 @@ class TestUtil(unittest.TestCase):
 
         class Thing(object):
             def __init__(self, a_dict):
-                for k, v in iteritems(a_dict):
+                for k, v in a_dict.items():
                     setattr(self, k, v)
 
         thing = Thing({'x': 'x-val'})

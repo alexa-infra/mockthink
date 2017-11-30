@@ -1,7 +1,5 @@
 # coding: utf-8
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import pytest
 import rethinkdb
 from pytest_server_fixtures.rethink import rethink_server, rethink_server_sess

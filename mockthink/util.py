@@ -1,8 +1,4 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from collections import defaultdict
-
-from future.utils import iteritems, old_div
 
 
 class GroupResults(defaultdict):
@@ -45,7 +41,7 @@ def clone(x):
 def deep_extend_pair(dict1, dict2):
     out = {}
     out.update(dict1)
-    for k, v in iteritems(dict2):
+    for k, v in dict2.items():
         if k not in out:
             out[k] = clone(v)
         else:
@@ -163,7 +159,7 @@ def ensure_list(x):
 @curry2
 def match_attrs(to_match, to_test):
     match = True
-    for k, v in iteritems(to_match):
+    for k, v in to_match.items():
         if getter(k)(to_test) != v:
             match = False
             break
@@ -192,7 +188,7 @@ def pipeline(*funcs):
 
 def pluck_with(*attrs):
     def inner_pluck(thing):
-        return {k: v for k,v in iteritems(thing) if k in attrs}
+        return {k: v for k,v in thing.items() if k in attrs}
     return inner_pluck
 
 def get_by_id(id):
@@ -206,10 +202,10 @@ def clone_array(x):
 
 @curry2
 def without(bad_attrs, thing):
-    return {k: v for k, v in iteritems(thing) if k not in bad_attrs}
+    return {k: v for k, v in thing.items() if k not in bad_attrs}
 
 def obj_clone(a_dict):
-    return {k: v for k, v in iteritems(a_dict)}
+    return {k: v for k, v in a_dict.items()}
 
 def is_iterable(x):
     return hasattr(x, '__iter__')
@@ -259,7 +255,7 @@ def safe_sum(nums):
 
 def safe_average(nums):
     actual_nums = list(filter(is_num, nums))
-    return old_div(sum(actual_nums), (len(actual_nums) + 0.0))
+    return sum(actual_nums) / len(actual_nums)
 
 def safe_max(nums):
     return max(filter(is_num, nums))

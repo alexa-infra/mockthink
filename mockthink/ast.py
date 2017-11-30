@@ -1,5 +1,3 @@
-from __future__ import unicode_literals, absolute_import, print_function, division
-
 from rethinkdb import (RqlRuntimeError, RqlDriverError,
                        RqlCompileError, ReqlNonExistenceError)
 import operator
@@ -9,9 +7,6 @@ import json
 from datetime import datetime, timedelta
 import dateutil.parser
 from pprint import pprint
-from future.utils import iteritems, text_type
-from past.utils import old_div
-from past.builtins import basestring
 
 from . import util, joins, rtime
 from .util import GroupResults
@@ -20,7 +15,6 @@ from .scope import Scope
 from . import ast_base
 from .ast_base import RBase, MonExp, BinExp, Ternary, ByFuncBase
 from .ast_base import LITERAL_OBJECT, LITERAL_LIST, RDatum, RFunc, MakeObj, MakeArray
-from past.builtins import filter
 
 
 
@@ -162,7 +156,7 @@ class GetField(BinExp):
                 self.raise_rql_not_found_error('Key "{}" not found'.format(thing_attr))
         if util.is_iterable(thing):
             mapped = list(map(lambda x: x.get(thing_attr), thing))
-            return filter(None, mapped)
+            return list(filter(None, mapped))
         self.raise_rql_runtime_error('Object or sequence of objects is expected')
 
 class Get(BinExp):
@@ -203,7 +197,7 @@ class GetAll(BinExp):
             return result
 
         else:
-            return filter(util.match_attr_multi('id', right), left)
+            return list(filter(util.match_attr_multi('id', right), left))
 
 class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):
@@ -239,7 +233,7 @@ class Mul(BinOp):
     binop = operator.mul
 
 class Div(BinOp):
-    binop = staticmethod(old_div)
+    binop = operator.truediv
 
 class Mod(BinOp):
     binop = operator.mod
@@ -340,7 +334,7 @@ class Insert(BinExp):
 
         def ensure_id(elem):
             if (u'id' not in elem) or (elem[u'id'] is None):
-                uid = text_type(uuid.uuid4())
+                uid = str(uuid.uuid4())
                 elem = util.extend(elem, {'id': uid})
                 generated_keys.append(uid)
             return elem
@@ -356,18 +350,18 @@ class Insert(BinExp):
 
 class FilterWithFunc(ByFuncBase):
     def do_run(self, sequence, filt_fn, arg, scope):
-        return filter(filt_fn, sequence)
+        return list(filter(filt_fn, sequence))
 
 class FilterWithObj(BinExp):
     def do_run(self, sequence, to_match, arg, scope):
-        return filter(util.match_attrs(to_match), sequence)
+        return list(filter(util.match_attrs(to_match), sequence))
 
 class MapWithRFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
         try:
             result = list(map(map_fn, sequence))
         except KeyError as k:
-            message = "Missing field '%s'" % text_type(k)
+            message = "Missing field '%s'" % str(k)
             self.raise_rql_runtime_error(message)
         return result
 
@@ -469,7 +463,7 @@ class CountByEq(BinExp):
 
 class CountByFunc(ByFuncBase):
     def do_run(self, sequence, filter_fn, arg, scope):
-        return len(filter(filter_fn, list(sequence)))
+        return len(list(filter(filter_fn, list(sequence))))
 
 class Min1(MonExp):
     def do_run(self, sequence, arg, scope):
@@ -967,7 +961,7 @@ class ToEpochTime(MonExp):
 
 class ISO8601(MonExp):
     def do_run(self, left, arg, scope):
-        if not isinstance(left, basestring):
+        if not isinstance(left, str):
             left = left.run(arg, scope)
         return dateutil.parser.parse(left)
 

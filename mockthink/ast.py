@@ -1,22 +1,21 @@
-from rethinkdb import (RqlRuntimeError, RqlDriverError,
-                       RqlCompileError, ReqlNonExistenceError)
 import operator
 import random
 import uuid
 import json
 from datetime import datetime, timedelta
-import dateutil.parser
 from pprint import pprint
 
-from . import util, joins, rtime
+import dateutil.parser
+from rethinkdb import ReqlNonExistenceError
+
+from . import util, joins, rtime, ast_base
+from .ast_base import RBase, MonExp, BinExp, Ternary, ByFuncBase
+from .ast_base import LITERAL_OBJECT, LITERAL_LIST, RDatum, RFunc, MakeObj, MakeArray # pylint: disable=unused-import
 from .util import GroupResults
 from .scope import Scope
 
-from . import ast_base
-from .ast_base import RBase, MonExp, BinExp, Ternary, ByFuncBase
-from .ast_base import LITERAL_OBJECT, LITERAL_LIST, RDatum, RFunc, MakeObj, MakeArray
 
-
+# pylint: disable=arguments-differ,unused-argument,too-many-arguments
 
 # #################
 #   Query handlers
@@ -29,10 +28,7 @@ class Literal(MonExp):
         return LITERAL_OBJECT.from_dict(obj)
 
 class RError0(RBase):
-    def __init__(self, *args):
-        pass
-
-    def run(self, arg, conn):
+    def run(self, arg, scope):
         self.raise_rql_runtime_error('DEFAULT MESSAGE')
 
 class RError1(MonExp):
@@ -41,7 +37,7 @@ class RError1(MonExp):
 
 
 class Uuid(RBase):
-    def run(self, arg, scope):
+    def run(self, arg, scope): # pylint: disable=no-self-use
         return uuid.uuid4()
 
 class RDb(MonExp):
@@ -49,8 +45,7 @@ class RDb(MonExp):
         return arg.get_db(db_name)
 
     def find_db_scope(self):
-        db_scope = Scope({})
-        return self.left.run(None, db_scope)
+        return self.left.run(None, Scope())
 
 class TypeOf(MonExp):
     def do_run(self, val, arg, scope):
@@ -61,7 +56,7 @@ class TypeOf(MonExp):
             float: 'NUMBER',
             bool: 'BOOL'
         }
-        if val == None:
+        if val is None:
             return 'NULL'
         else:
             val_type = type(val)
@@ -75,8 +70,8 @@ class TypeOf(MonExp):
 class Distinct(MonExp):
     def do_run(self, table_or_seq, arg, scope):
         if 'index' in self.optargs:
-            # table
-            table_or_seq = table_or_seq._index_values(self.optargs['index'])
+            index = self.optargs['index']
+            table_or_seq = table_or_seq._index_values(index)
         return list(util.dictable_distinct(table_or_seq))
 
 class Zip(MonExp):
@@ -88,7 +83,7 @@ class Zip(MonExp):
 
 class IsEmpty(MonExp):
     def do_run(self, left, arg, scope):
-        return (len(left) == 0)
+        return len(left) == 0
 
 class RVar(MonExp):
     def do_run(self, symbol_name, arg, scope):
@@ -96,7 +91,7 @@ class RVar(MonExp):
 
 class Not(MonExp):
     def do_run(self, left, arg, scope):
-        return (not left)
+        return not left
 
 class Keys(MonExp):
     def do_run(self, left, arg, scope):
@@ -116,10 +111,9 @@ class Json(MonExp):
 
 class RTable(BinExp):
     def find_table_scope(self):
-        table_scope = Scope({})
         if self.right:
-            return self.right.run(None, table_scope)
-        return self.left.run(None, table_scope)
+            return self.right.run(None, Scope())
+        return self.left.run(None, Scope())
 
     def has_table_scope(self):
         return True
@@ -139,23 +133,23 @@ class RTable(BinExp):
 
 
 class Bracket(BinExp):
-    def do_run(self, thing, thing_attr, arg, scope):
+    def do_run(self, thing, attr, arg, scope):
         try:
-            return thing[thing_attr]
-        except KeyError as k:
-            self.raise_rql_not_found_error('Key "{}" not found'.format(thing_attr))
-        except IndexError as k:
-            self.raise_rql_not_found_error('Index "{}" out of range'.format(thing_attr))
+            return thing[attr]
+        except KeyError:
+            self.raise_rql_not_found_error('Key "{}" not found'.format(attr))
+        except IndexError:
+            self.raise_rql_not_found_error('Index "{}" out of range'.format(attr))
 
 class GetField(BinExp):
-    def do_run(self, thing, thing_attr, arg, scope):
+    def do_run(self, thing, attr, arg, scope):
         if isinstance(thing, dict):
             try:
-                return thing[thing_attr]
-            except KeyError as k:
-                self.raise_rql_not_found_error('Key "{}" not found'.format(thing_attr))
+                return thing[attr]
+            except KeyError:
+                self.raise_rql_not_found_error('Key "{}" not found'.format(attr))
         if util.is_iterable(thing):
-            mapped = list(map(lambda x: x.get(thing_attr), thing))
+            mapped = list(map(lambda x: x.get(attr), thing))
             return list(filter(None, mapped))
         self.raise_rql_runtime_error('Object or sequence of objects is expected')
 
@@ -203,7 +197,11 @@ class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):
         if isinstance(left, datetime) and isinstance(right, int):
             right = timedelta(seconds=right)
-        return self.__class__.binop(left, right)
+        return self.binop(left, right)
+
+    @property
+    def binop(self):
+        raise NotImplementedError
 
 class Gt(BinOp):
     binop = operator.gt
@@ -253,7 +251,7 @@ class Reduce(ByFuncBase):
         return result
 
 
-class UpdateBase(object):
+class UpdateMixin(object):
     def __init__(self, *args):
         pass
 
@@ -279,7 +277,7 @@ class UpdateBase(object):
             del report['changes']
         return result, report
 
-class UpdateByFunc(ByFuncBase, UpdateBase):
+class UpdateByFunc(ByFuncBase, UpdateMixin):
     def do_run(self, sequence, map_fn, arg, scope):
         self.validate_nested_query_status()
         def mapper(doc):
@@ -287,12 +285,12 @@ class UpdateByFunc(ByFuncBase, UpdateBase):
             return ast_base.rql_merge_with(ext_with, doc)
         return self.update_table(util.maybe_map(mapper, sequence), arg, scope)
 
-class UpdateWithObj(BinExp, UpdateBase):
+class UpdateWithObj(BinExp, UpdateMixin):
     def do_run(self, sequence, to_update, arg, scope):
         self.validate_nested_query_status()
         return self.update_table(util.maybe_map(ast_base.rql_merge_with(to_update), sequence), arg, scope)
 
-class Replace(BinExp, UpdateBase):
+class Replace(BinExp, UpdateMixin):
     def do_run(self, left, right, arg, scope):
         return self.update_table(right, arg, scope)
 
@@ -504,25 +502,20 @@ class OrderByKeys(BinExp):
         return util.sort_by_many(keys, sequence)
 
 class Random0(RBase):
-    def __init__(self, optargs={}):
-        self.optargs = optargs
-
-    def run(self, arg, scope):
+    def run(self, arg, scope): # pylint: disable=no-self-use
         return random.random()
 
 class Random1(MonExp):
     def do_run(self, max_num, arg, scope):
         if 'float' in self.optargs and self.optargs['float']:
             return random.uniform(0, max_num)
-        else:
-            return random.randint(0, max_num)
+        return random.randint(0, max_num)
 
 class Random2(BinExp):
     def do_run(self, min_num, max_num, arg, scope):
         if 'float' in self.optargs and self.optargs['float']:
             return random.uniform(min_num, max_num)
-        else:
-            return random.randint(min_num, max_num)
+        return random.randint(min_num, max_num)
 
 class Union(BinExp):
     def do_run(self, left, right, arg, scope):
@@ -571,17 +564,17 @@ class UnGroup(MonExp):
         return list(dict(group=k, reduction=v) for k, v in grouped_seq.items())
 
 class Branch(RBase):
-    def __init__(self, test, if_true, if_false, optargs={}):
+    def __init__(self, test, if_true, if_false, *args, **kwargs):
         self.test = test
         self.if_true = if_true
         self.if_false = if_false
+        super().__init__(*args, **kwargs)
 
     def run(self, arg, scope):
         test = self.test.run(arg, scope)
-        if test == False or test == None:
+        if test is False or test is None:
             return self.if_false.run(arg, scope)
-        else:
-            return self.if_true.run(arg, scope)
+        return self.if_true.run(arg, scope)
 
 class Difference(BinExp):
     def do_run(self, sequence, to_remove, arg, scope):
@@ -602,24 +595,22 @@ class ContainsElems(BinExp):
         return result
 
 class ContainsFuncs(RBase):
-    def __init__(self, left, right, optargs={}):
-        assert(isinstance(right, MakeArray))
+    def __init__(self, left, right, *args, **kwargs):
+        assert isinstance(right, MakeArray)
         self.left = left
         self.right = right
-        self.optargs = optargs
+        super().__init__(*args, **kwargs)
 
     def iter_preds(self, context, scope):
         for pred in self.right.vals:
-            yield (lambda doc: pred.run([doc], context, scope))
+            yield lambda doc: pred.run([doc], context, scope)
 
     def run(self, arg, scope):
         sequence = list(self.left.run(arg, scope))
-        result = True
         for pred in self.iter_preds(arg, scope):
             if not util.any_passing(pred, sequence):
-                result = False
-                break
-        return result
+                return False
+        return True
 
 
 #   #################################
@@ -652,8 +643,6 @@ class TableDropTL(MonExp):
         return arg.drop_table_in_db(db_name, table_name)
 
 class TableListTL(RBase):
-    def __init__(self, optargs={}):
-        self.optargs = optargs
     def run(self, arg, scope):
         db_name = self.find_db_scope()
         return arg.list_tables_in_db(db_name)
@@ -668,9 +657,7 @@ class DbDrop(MonExp):
         return arg.drop_db(db_name)
 
 class DbList(RBase):
-    def __init__(self, *args, **kwargs):
-        pass
-    def run(self, arg, scope):
+    def run(self, arg, scope): # pylint: disable=no-self-use
         return arg.list_dbs()
 
 #   #################################
@@ -692,14 +679,13 @@ class IndexCreateByField(BinExp):
         )
 
 class IndexCreateByFunc(RBase):
-    def __init__(self, left, middle, right, optargs=None):
+    def __init__(self, left, middle, right, *args, **kwargs):
         self.left = left
         self.middle = middle
         self.right = right
-        self.optargs = optargs or {}
+        super().__init__(*args, **kwargs)
 
     def run(self, arg, scope):
-        sequence = self.left.run(arg, scope)
         index_name = self.middle.run(arg, scope)
         index_func = self.right
         current_db = self.find_db_scope()
@@ -736,7 +722,7 @@ class IndexRename(Ternary):
 
 class IndexDrop(BinExp):
     def do_run(self, sequence, index_name, arg, scope):
-        assert(isinstance(self.left, RTable))
+        assert isinstance(self.left, RTable)
         current_db = self.find_db_scope()
         current_table = self.find_table_scope()
 
@@ -748,7 +734,7 @@ class IndexDrop(BinExp):
 
 class IndexList(MonExp):
     def do_run(self, table, arg, scope):
-        assert(isinstance(self.left, RTable))
+        assert isinstance(self.left, RTable)
 
         current_db = self.find_db_scope()
         current_table = self.find_table_scope()
@@ -760,12 +746,12 @@ class IndexList(MonExp):
 
 class IndexWaitAll(MonExp):
     def do_run(self, table, arg, scope):
-        assert(isinstance(self.left, RTable))
+        assert isinstance(self.left, RTable)
         return table
 
 class IndexWaitOne(BinExp):
     def do_run(self, table, index_name, arg, scope):
-        assert(isinstance(self.left, RTable))
+        assert isinstance(self.left, RTable)
         current_db = self.find_db_scope()
         current_table = self.find_table_scope()
         exists = arg.index_exists_in_table_in_db(
@@ -773,12 +759,12 @@ class IndexWaitOne(BinExp):
             current_table,
             index_name
         )
-        assert(exists)
+        assert exists
         return table
 
 class Sync(MonExp):
     def do_run(self, table, arg, scope):
-        assert(isinstance(self.left, RTable))
+        assert isinstance(self.left, RTable)
         return table
 
 
@@ -879,16 +865,20 @@ class EqJoin(Ternary):
         return joins.do_eq_join(field, left, 'id', right)
 
 class InnerOuterJoinBase(RBase):
-    def __init__(self, left, middle, right, optargs={}):
+    def __init__(self, left, middle, right, *args, **kwargs):
         self.left = left
         self.middle = middle
         self.right = right
+        super().__init__(*args, **kwargs)
 
     def run(self, arg, scope):
         left_seq = self.left.run(arg, scope)
         right_seq = self.middle.run(arg, scope)
         pred = lambda x, y: self.right.run([x, y], arg, scope)
         return self.do_run(left_seq, right_seq, pred, arg, scope)
+
+    def do_run(self, left, right, pred, arg, scope):
+        raise NotImplementedError
 
 class InnerJoin(InnerOuterJoinBase):
     def do_run(self, left, right, pred, arg, scope):
@@ -899,68 +889,56 @@ class OuterJoin(InnerOuterJoinBase):
     def do_run(self, left, right, pred, arg, scope):
         return joins.do_outer_join(pred, left, right)
 
-
-
-
-
-
-
-
-
-
 # ############
 #   Time
 # ############
 
 class Year(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.year
 
 class Month(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.month
 
 class Day(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.day
 
 class Hours(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.hour
 
 class Minutes(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.minute
 
 class Seconds(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.second
 
 class Date(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return rtime.to_date(dtime)
 
 class TimeOfDay(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return rtime.time_of_day_seconds(dtime)
 
 class DayOfWeek(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return dtime.isoweekday()
 
 class Now(RBase):
-    def __init__(self, optargs={}):
-        self.optargs = optargs
-
-    def run(self, db, scope):
-        return db.get_now_time()
+    def run(self, arg, scope): # pylint: disable=no-self-use
+        return arg.get_now_time()
 
 class ToEpochTime(MonExp):
-    def do_run(self, dtime, arg, scope):
+    def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use
         return rtime.epoch_time(dtime)
 
 class ISO8601(MonExp):
-    def do_run(self, left, arg, scope):
+    def do_run(self, left, arg, scope): # pylint: disable=no-self-use
         if not isinstance(left, str):
             left = left.run(arg, scope)
         return dateutil.parser.parse(left)
@@ -983,7 +961,7 @@ class During(Ternary):
         left_test, right_test = operators_for_bounds(
             options['left_bound'], options['right_bound']
         )
-        return (left_test(to_test, left) and right_test(to_test, right))
+        return left_test(to_test, left) and right_test(to_test, right)
 
 class StrMatch(RBase):
     pass
@@ -1001,11 +979,14 @@ class RDefault(BinExp):
     def run(self, arg, scope):
         try:
             result = self.left.run(arg, scope)
-        except ReqlNonExistenceError as k:
+        except ReqlNonExistenceError:
             result = None
         if result is None:
             return self.right.run(arg, scope)
         return result
+
+    def do_run(self, left, right, arg, scope):
+        pass
 
 class RExpr(RBase):
     pass

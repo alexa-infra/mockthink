@@ -340,7 +340,7 @@ class MockThink(object):
                 temp_default_db = True
                 self.default_db = db
 
-            scope = Scope({})
+            scope = Scope()
             result = query.run(self.data, scope)
             changes = None
             if isinstance(result, tuple) and isinstance(result[0], MockDb):

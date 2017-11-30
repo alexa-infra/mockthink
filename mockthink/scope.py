@@ -7,8 +7,8 @@ class NotInScopeErr(Exception):
         self.msg = msg
 
 class Scope(object):
-    def __init__(self, values):
-        self.values = values
+    def __init__(self, values=None):
+        self.values = values or {}
 
     def get_sym(self, x):
         result = None

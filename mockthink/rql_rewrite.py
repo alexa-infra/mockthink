@@ -1,7 +1,6 @@
 import rethinkdb.ast as r_ast
 
 from . import ast as mt_ast
-from . import util
 
 
 # pylint: disable=protected-access
@@ -15,81 +14,88 @@ RQL_TYPE_HANDLERS = {}
 def type_dispatch(rql_node):
     return RQL_TYPE_HANDLERS[rql_node.__class__](rql_node)
 
-@util.curry2
-def handles_type(rql_type, func):
-    def handler(node):
-        assert isinstance(node, rql_type)
-        return func(node)
-    RQL_TYPE_HANDLERS[rql_type] = handler
-    return handler
-
+def handles_type(rql_type):
+    def wrapper(func):
+        def handler(node):
+            assert isinstance(node, rql_type)
+            return func(node)
+        RQL_TYPE_HANDLERS[rql_type] = handler
+        return handler
+    return wrapper
 
 def process_optargs(node):
     if hasattr(node, 'optargs') and node.optargs:
         return {k: plain_val_of_datum(v) for k, v in node.optargs.items()}
     return {}
 
-@util.curry2
-def handle_generic_zerop(mt_constructor, node):
-    return mt_constructor(optargs=process_optargs(node))
+def handle_generic_zerop(mt_constructor):
+    def handler(node):
+        return mt_constructor(optargs=process_optargs(node))
+    return handler
 
-@util.curry2
-def handle_generic_monop(mt_constructor, node):
-    return mt_constructor(type_dispatch(node._args[0]), optargs=process_optargs(node))
+def handle_generic_monop(mt_constructor):
+    def handler(node):
+        return mt_constructor(type_dispatch(node._args[0]), optargs=process_optargs(node))
+    return handler
 
-@util.curry2
-def handle_generic_binop(mt_constructor, node):
-    return mt_constructor(
-        type_dispatch(node._args[0]),
-        type_dispatch(node._args[1]),
-        optargs=process_optargs(node)
-    )
-
-@util.curry2
-def handle_generic_binop_opt(mt_constructor, node):
-    return mt_constructor(
-        type_dispatch(node._args[0]),
-        type_dispatch(node._args[1]) if len(node._args) == 2 else None,
-        optargs=process_optargs(node)
-    )
-
-@util.curry2
-def handle_generic_binop_poly_2(mt_type_map, node):
-    for r_type, m_type in mt_type_map.items():
-        if isinstance(node._args[1], r_type):
-            mt_constructor = m_type
-            break
-    return mt_constructor(
-        type_dispatch(node._args[0]),
-        type_dispatch(node._args[1]),
-        optargs=process_optargs(node)
-    )
-
-@util.curry2
-def handle_generic_ternop(mt_constructor, node):
-    assert len(node._args) == 3
-    args = [type_dispatch(arg) for arg in node._args]
-    return mt_constructor(*args, optargs=process_optargs(node))
-
-@util.curry2
-def handle_generic_aggregation(mt_type_map, node):
-    optargs = process_optargs(node)
-    if len(node._args) == 1:
-        mt_constructor = mt_type_map[1]
+def handle_generic_binop(mt_constructor):
+    def handler(node):
         return mt_constructor(
             type_dispatch(node._args[0]),
-            optargs=optargs
+            type_dispatch(node._args[1]),
+            optargs=process_optargs(node)
         )
-    else:
-        for r_type, m_type in mt_type_map[2].items():
-            if isinstance(node._args[1], r_type):
+    return handler
+
+def handle_generic_binop_opt(mt_constructor):
+    def handler(node):
+        return mt_constructor(
+            type_dispatch(node._args[0]),
+            type_dispatch(node._args[1]) if len(node._args) == 2 else None,
+            optargs=process_optargs(node)
+        )
+    return handler
+
+def handle_generic_binop_poly_2(mt_type_map):
+    def handler(node):
+        for rtype, m_type in mt_type_map.items():
+            if isinstance(node._args[1], rtype):
                 mt_constructor = m_type
                 break
-    return mt_constructor(
-        type_dispatch(node._args[0]),
-        type_dispatch(node._args[1]),
-        optargs=optargs
-    )
+        return mt_constructor(
+            type_dispatch(node._args[0]),
+            type_dispatch(node._args[1]),
+            optargs=process_optargs(node)
+        )
+    return handler
+
+def handle_generic_ternop(mt_constructor):
+    def handler(node):
+        assert len(node._args) == 3
+        args = [type_dispatch(arg) for arg in node._args]
+        return mt_constructor(*args, optargs=process_optargs(node))
+    return handler
+
+def handle_generic_aggregation(mt_type_map):
+    def handler(node):
+        optargs = process_optargs(node)
+        if len(node._args) == 1:
+            mt_constructor = mt_type_map[1]
+            return mt_constructor(
+                type_dispatch(node._args[0]),
+                optargs=optargs
+            )
+        else:
+            for rtype, m_type in mt_type_map[2].items():
+                if isinstance(node._args[1], rtype):
+                    mt_constructor = m_type
+                    break
+        return mt_constructor(
+            type_dispatch(node._args[0]),
+            type_dispatch(node._args[1]),
+            optargs=optargs
+        )
+    return handler
 
 GENERIC_BY_ARITY = {
     0: handle_generic_zerop,
@@ -98,10 +104,14 @@ GENERIC_BY_ARITY = {
     3: handle_generic_ternop
 }
 
-@util.curry2
-def handle_n_ary(arity_type_map, node):
-    arg_len = len(node._args)
-    return GENERIC_BY_ARITY[arg_len](arity_type_map[arg_len], node)
+def handle_n_ary(arity_type_map):
+    def handler(node):
+        arg_len = len(node._args)
+        rmethod = GENERIC_BY_ARITY[arg_len]
+        rtype = arity_type_map[arg_len]
+        real_hanler = rmethod(rtype)
+        return real_hanler(node)
+    return handler
 
 def makearray_of_datums(datum_list):
     out = []
@@ -113,22 +123,24 @@ def makearray_of_datums(datum_list):
         out.append(type_dispatch(elem))
     return mt_ast.MakeArray(out)
 
-@util.curry2
-def binop_splat(mt_constructor, node):
-    args = node._args
-    left = type_dispatch(args[0])
-    if isinstance(args[1], r_ast.MakeArray):
-        right = type_dispatch(args[1])
-    else:
-        right = makearray_of_datums(args[1:])
-    return mt_constructor(left, right, optargs=process_optargs(node))
+def binop_splat(mt_constructor):
+    def handler(node):
+        args = node._args
+        left = type_dispatch(args[0])
+        if isinstance(args[1], r_ast.MakeArray):
+            right = type_dispatch(args[1])
+        else:
+            right = makearray_of_datums(args[1:])
+        return mt_constructor(left, right, optargs=process_optargs(node))
+    return handler
 
-@util.curry2
-def binop_variable(mt_constructor, node):
-    args = node._args
-    left = type_dispatch(args[0])
-    right = makearray_of_datums(args[1:])
-    return mt_constructor(left, right, optargs=process_optargs(node))
+def binop_variable(mt_constructor):
+    def handler(node):
+        args = node._args
+        left = type_dispatch(args[0])
+        right = makearray_of_datums(args[1:])
+        return mt_constructor(left, right, optargs=process_optargs(node))
+    return handler
 
 
 #
@@ -339,142 +351,137 @@ NORMAL_AGGREGATIONS = {
     }
 }
 
-def register_type_handlers():
-    # pylint: disable=no-value-for-parameter, unused-variable
+RQL_TYPE_HANDLERS[r_ast.Table] = handle_generic_binop_opt(mt_ast.RTable)
 
-    RQL_TYPE_HANDLERS[r_ast.Table] = handle_generic_binop_opt(mt_ast.RTable)
+for r_type, mt_type in NORMAL_ZEROPS.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_zerop(mt_type)
 
-    for r_type, mt_type in NORMAL_ZEROPS.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_zerop(mt_type)
+for r_type, mt_type in NORMAL_MONOPS.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_monop(mt_type)
 
-    for r_type, mt_type in NORMAL_MONOPS.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_monop(mt_type)
+for r_type, mt_type in NORMAL_BINOPS.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_binop(mt_type)
 
-    for r_type, mt_type in NORMAL_BINOPS.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_binop(mt_type)
+for r_type, arg_2_map in BINOPS_BY_ARG_2_TYPE.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_binop_poly_2(arg_2_map)
 
-    for r_type, arg_2_map in BINOPS_BY_ARG_2_TYPE.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_binop_poly_2(arg_2_map)
+RQL_TYPE_HANDLERS[r_ast.GetAll] = binop_variable(mt_ast.GetAll)
 
-    RQL_TYPE_HANDLERS[r_ast.GetAll] = binop_variable(mt_ast.GetAll)
+for r_type, mt_type in SPLATTED_BINOPS.items():
+    RQL_TYPE_HANDLERS[r_type] = binop_splat(mt_type)
 
-    for r_type, mt_type in SPLATTED_BINOPS.items():
-        RQL_TYPE_HANDLERS[r_type] = binop_splat(mt_type)
+for r_type, mt_type in NORMAL_TERNOPS.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_ternop(mt_type)
 
-    for r_type, mt_type in NORMAL_TERNOPS.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_ternop(mt_type)
+for r_type, mt_type in OPS_BY_ARITY.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_n_ary(mt_type)
 
-    for r_type, mt_type in OPS_BY_ARITY.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_n_ary(mt_type)
-
-    for r_type, type_map in NORMAL_AGGREGATIONS.items():
-        RQL_TYPE_HANDLERS[r_type] = handle_generic_aggregation(type_map)
-    @handles_type(r_ast.Datum)
-    def handle_datum(node):
-        return mt_ast.RDatum(node.data)
+for r_type, type_map in NORMAL_AGGREGATIONS.items():
+    RQL_TYPE_HANDLERS[r_type] = handle_generic_aggregation(type_map)
+@handles_type(r_ast.Datum)
+def handle_datum(node):
+    return mt_ast.RDatum(node.data)
 
 
-    @handles_type(r_ast.MakeArray)
-    def handle_make_array(node):
-        return mt_ast.MakeArray([type_dispatch(elem) for elem in node._args])
+@handles_type(r_ast.MakeArray)
+def handle_make_array(node):
+    return mt_ast.MakeArray([type_dispatch(elem) for elem in node._args])
 
-    @handles_type(r_ast.MakeObj)
-    def handle_make_obj(node):
-        return mt_ast.MakeObj({k: type_dispatch(v) for k, v in node.optargs.items()})
+@handles_type(r_ast.MakeObj)
+def handle_make_obj(node):
+    return mt_ast.MakeObj({k: type_dispatch(v) for k, v in node.optargs.items()})
 
-    @handles_type(r_ast.Func)
-    def handle_func(node):
-        func_params = plain_list_of_make_array(node._args[0])
-        func_body = node._args[1]
-        if contains_ivar(func_body):
-            replace_implicit_vars(func_params[0], func_body)
-        func_body = type_dispatch(func_body)
-        return mt_ast.RFunc(func_params, func_body)
+@handles_type(r_ast.Func)
+def handle_func(node):
+    func_params = plain_list_of_make_array(node._args[0])
+    func_body = node._args[1]
+    if contains_ivar(func_body):
+        replace_implicit_vars(func_params[0], func_body)
+    func_body = type_dispatch(func_body)
+    return mt_ast.RFunc(func_params, func_body)
 
-    @handles_type(r_ast.OrderBy)
-    def handle_order_by(node):
-        optargs = process_optargs(node)
-        left = type_dispatch(node._args[0])
-        right = []
-        for elem in node._args[1:]:
-            if isinstance(elem, r_ast.Datum):
-                right.append(mt_ast.Asc(type_dispatch(elem)))
-            else:
-                accepted = (r_ast.Desc, r_ast.Asc, r_ast.Func)
-                assert elem.__class__ in accepted
-                right.append(type_dispatch(elem))
-        if isinstance(right[0], mt_ast.RFunc):
-            right = right[0]
-            return mt_ast.OrderByFunc(left, right, optargs=optargs)
-        right = mt_ast.MakeArray(right)
-        return mt_ast.OrderByKeys(left, right, optargs=optargs)
+@handles_type(r_ast.OrderBy)
+def handle_order_by(node):
+    optargs = process_optargs(node)
+    left = type_dispatch(node._args[0])
+    right = []
+    for elem in node._args[1:]:
+        if isinstance(elem, r_ast.Datum):
+            right.append(mt_ast.Asc(type_dispatch(elem)))
+        else:
+            accepted = (r_ast.Desc, r_ast.Asc, r_ast.Func)
+            assert elem.__class__ in accepted
+            right.append(type_dispatch(elem))
+    if isinstance(right[0], mt_ast.RFunc):
+        right = right[0]
+        return mt_ast.OrderByFunc(left, right, optargs=optargs)
+    right = mt_ast.MakeArray(right)
+    return mt_ast.OrderByKeys(left, right, optargs=optargs)
 
-    @handles_type(r_ast.OffsetsOf)
-    def handle_offsets_of(node):
-        optargs = process_optargs(node)
-        left = type_dispatch(node._args[0])
-        right = type_dispatch(node._args[1])
-        if isinstance(node._args[1], r_ast.Func):
-            return mt_ast.OffsetsOfFunc(
-                left, right, optargs=optargs
-            )
-        return mt_ast.OffsetsOfValue(
+@handles_type(r_ast.OffsetsOf)
+def handle_offsets_of(node):
+    optargs = process_optargs(node)
+    left = type_dispatch(node._args[0])
+    right = type_dispatch(node._args[1])
+    if isinstance(node._args[1], r_ast.Func):
+        return mt_ast.OffsetsOfFunc(
             left, right, optargs=optargs
         )
+    return mt_ast.OffsetsOfValue(
+        left, right, optargs=optargs
+    )
 
-    @handles_type(r_ast.FunCall)
-    def handle_funcall(node):
-        if isinstance(node._args[0], r_ast.Func):
-            func = type_dispatch(node._args[0])
-            rest = node._args[1:]
-        else:
-            last = len(node._args) - 1
-            func = type_dispatch(node._args[last])
-            rest = node._args[0:last]
-        rest = mt_ast.MakeArray([type_dispatch(elem) for elem in rest])
-        return mt_ast.Do(rest, func)
+@handles_type(r_ast.FunCall)
+def handle_funcall(node):
+    if isinstance(node._args[0], r_ast.Func):
+        func = type_dispatch(node._args[0])
+        rest = node._args[1:]
+    else:
+        last = len(node._args) - 1
+        func = type_dispatch(node._args[last])
+        rest = node._args[0:last]
+    rest = mt_ast.MakeArray([type_dispatch(elem) for elem in rest])
+    return mt_ast.Do(rest, func)
 
-    @handles_type(r_ast.Time)
-    def handle_time(node):
-        arg = makearray_of_datums(node._args)
-        return mt_ast.Time(arg)
+@handles_type(r_ast.Time)
+def handle_time(node):
+    arg = makearray_of_datums(node._args)
+    return mt_ast.Time(arg)
 
-    @handles_type(r_ast.Count)
-    def handle_count(node):
-        optargs = process_optargs(node)
-        left = type_dispatch(node._args[0])
-        if len(node._args) == 1:
-            return mt_ast.Count1(
+@handles_type(r_ast.Count)
+def handle_count(node):
+    optargs = process_optargs(node)
+    left = type_dispatch(node._args[0])
+    if len(node._args) == 1:
+        return mt_ast.Count1(
+            left,
+            optargs=optargs
+        )
+    else:
+        right = type_dispatch(node._args[1])
+        if isinstance(node._args[1], (r_ast.MakeObj, r_ast.Datum,
+                                      r_ast.MakeArray)):
+            return mt_ast.CountByEq(
                 left,
+                right,
                 optargs=optargs
             )
-        else:
-            right = type_dispatch(node._args[1])
-            if isinstance(node._args[1], (r_ast.MakeObj, r_ast.Datum,
-                                          r_ast.MakeArray)):
-                return mt_ast.CountByEq(
-                    left,
-                    right,
-                    optargs=optargs
-                )
-            elif isinstance(node._args[1], r_ast.Func):
-                return mt_ast.CountByFunc(
-                    left,
-                    right,
-                    optargs=optargs
-                )
-        raise TypeError
+        elif isinstance(node._args[1], r_ast.Func):
+            return mt_ast.CountByFunc(
+                left,
+                right,
+                optargs=optargs
+            )
+    raise TypeError
 
-    @handles_type(r_ast.Contains)
-    def handle_contains(node):
-        sequence = type_dispatch(node._args[0])
-        optargs = process_optargs(node)
-        rest = makearray_of_datums(node._args[1:])
-        if isinstance(node._args[1], r_ast.Func):
-            return mt_ast.ContainsFuncs(sequence, rest, optargs=optargs)
-        return mt_ast.ContainsElems(sequence, rest, optargs=optargs)
-
-register_type_handlers()
+@handles_type(r_ast.Contains)
+def handle_contains(node):
+    sequence = type_dispatch(node._args[0])
+    optargs = process_optargs(node)
+    rest = makearray_of_datums(node._args[1:])
+    if isinstance(node._args[1], r_ast.Func):
+        return mt_ast.ContainsFuncs(sequence, rest, optargs=optargs)
+    return mt_ast.ContainsElems(sequence, rest, optargs=optargs)
 
 def plain_val_of_datum(datum_node):
     return datum_node.data

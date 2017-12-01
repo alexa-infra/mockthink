@@ -12,14 +12,6 @@ class TestUtil(unittest.TestCase):
         assertEqual(8, curried(5, 3))
         assertEqual(8, curried(5)(3))
 
-    def test_curry3(self):
-        fun = lambda x, y, z: x + y + z
-        curried = util.curry3(fun)
-        assertEqual(15, curried(3, 5, 7))
-        assertEqual(15, curried(3, 5)(7))
-        assertEqual(15, curried(3)(5, 7))
-        assertEqual(15, curried(3)(5)(7))
-
     def test_extend(self):
         dict_1 = {'x': 'x1-val', 'y': 'y1-val'}
         dict_2 = {'x': 'x2-val', 'z': 'z2-val'}

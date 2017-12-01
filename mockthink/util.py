@@ -14,15 +14,6 @@ def curry2(func):
         return out2
     return out
 
-def curry3(func):
-    def out(x, *args):
-        if not args:
-            return curry2(lambda y, z: func(x, y, z))
-        if len(args) == 2:
-            return func(x, *args)
-        return curry2(lambda a, b: func(x, a, b))(args[0])
-    return out
-
 def extend(*dicts):
     out = {}
     for one_dict in dicts:
@@ -50,15 +41,12 @@ def append(elem, a_list):
 def prepend(elem, a_list):
     return cat([elem], a_list)
 
-@curry3
 def splice_at(to_splice, index, a_list):
     return cat(a_list[0:index], to_splice, a_list[index:])
 
-@curry3
 def insert_at(val, index, a_list):
     return splice_at([val], index, a_list)
 
-@curry3
 def change_at(val, index, a_list):
     right_start = index + 1
     return cat(a_list[0:index], [val], a_list[right_start:])
@@ -96,11 +84,14 @@ def getter(key, thing):
         return thing.get(key, None)
     return getattr(thing, key, None)
 
-@curry3
 def match_attr(key, val, thing):
     return getter(key, thing) == val
 
-@curry3
+def match_attr_pred(key, val):
+    def handler(things):
+        return match_attr(key, val, things)
+    return handler
+
 def match_attr_multi(key, good_vals, thing):
     thing_val = getter(key, thing)
     result = False
@@ -110,6 +101,10 @@ def match_attr_multi(key, good_vals, thing):
             break
     return result
 
+def match_attr_multi_pred(key, good_vals):
+    def handler(things):
+        return match_attr_multi(key, good_vals, things)
+    return handler
 
 def ensure_list(x):
     if not isinstance(x, list):
@@ -161,7 +156,6 @@ def drop(n, a_list):
 def take(n, a_list):
     return a_list[0:n]
 
-@curry3
 def slice_with(start, end, a_list):
     return a_list[start:end]
 

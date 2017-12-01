@@ -155,7 +155,7 @@ class GetField(BinExp):
 
 class Get(BinExp):
     def do_run(self, left, right, arg, scope):
-        return util.find_first(util.match_attr('id', right), left)
+        return util.find_first(util.match_attr_pred('id', right), left)
 
 class GetAll(BinExp):
     def do_run(self, left, right, arg, scope):
@@ -191,7 +191,7 @@ class GetAll(BinExp):
             return result
 
         else:
-            return list(filter(util.match_attr_multi('id', right), left))
+            return list(filter(util.match_attr_multi_pred('id', right), left))
 
 class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):

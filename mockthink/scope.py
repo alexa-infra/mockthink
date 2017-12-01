@@ -3,20 +3,21 @@ from pprint import pprint
 
 class NotInScopeErr(Exception):
     def __init__(self, msg):
-        print(msg)
         self.msg = msg
+        super().__init__()
 
 class Scope(object):
     def __init__(self, values=None):
         self.values = values or {}
+        self.parent = None
 
     def get_sym(self, x):
         result = None
         if x in self.values:
             result = self.values[x]
-        elif hasattr(self, 'parent'):
+        elif self.parent:
             result = self.parent.get_sym(x)
-        if result == None:
+        if result is None:
             msg = "symbol not defined: %s" % x
             raise NotInScopeErr(msg)
         return result
@@ -36,4 +37,3 @@ class Scope(object):
 
     def log(self):
         pprint(self.get_flattened())
-

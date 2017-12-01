@@ -25,8 +25,8 @@ def do_inner_join(pred, left, right):
 def do_eq_join(left_field, left, right_field, right):
     out = []
     for elem in left:
-        lval = util.getter(left_field)(elem)
-        match = util.find_first(lambda d: util.getter(right_field)(d) == lval, right)
+        lval = util.getter(left_field, elem)
+        match = util.find_first(lambda d: util.getter(right_field, d) == lval, right)
         if match:
             out.append({'left': elem, 'right': match})
     return out

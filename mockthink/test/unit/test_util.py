@@ -49,25 +49,6 @@ class TestUtil(unittest.TestCase):
         assertEqual([1, 2, 3], list_1)
         assertEqual([7, 8, 9], list_2)
 
-
-    def test_extend_with(self):
-        with mock.patch('mockthink.util.extend') as extend:
-            extend.return_value = 'EXTENDED'
-            util.extend_with('X', 'Y')
-            util.extend_with('X')('Y')
-
-            extend.assert_has_calls([
-                mock.call('Y', 'X'),
-                mock.call('Y', 'X')
-            ])
-
-    def test_map_with(self):
-        add_1 = lambda x: x + 1
-        nums = [10, 20, 30]
-        map_fn = util.map_with(add_1)
-        assertEqual([11, 21, 31], util.map_with(add_1)(nums))
-        assertEqual([11, 21, 31], util.map_with(add_1, nums))
-
     def test_has_attrs(self):
         thing1 = {'a': 'a-val', 'b': 'b-val'}
         thing2 = {'x': 'x-val'}
@@ -78,8 +59,8 @@ class TestUtil(unittest.TestCase):
 
     def test_nth(self):
         nums = [10, 20, 30, 40, 50]
-        assertEqual(20, util.nth(1)(nums))
-        assertEqual(40, util.nth(3)(nums))
+        assertEqual(20, util.nth(1, nums))
+        assertEqual(40, util.nth(3, nums))
 
     def test_as_obj(self):
         expected = {
@@ -121,13 +102,6 @@ class TestUtil(unittest.TestCase):
             'y': 'y-val',
         }, util.pluck_with('x', 'y')(obj))
 
-    def test_pipeline(self):
-        add_5 = lambda x: x + 5
-        mul_2 = lambda x: x * 2
-
-        assertEqual(24, util.pipeline(add_5, mul_2)(7))
-        assertEqual(19, util.pipeline(mul_2, add_5)(7))
-
     def test_match_attrs_matching(self):
         to_match = {
             'x': 'good-x',
@@ -168,8 +142,8 @@ class TestUtil(unittest.TestCase):
         a_dict = {
             'x': 'x-val'
         }
-        assertEqual('x-val', util.getter('x')(a_dict))
-        assertEqual(None, util.getter('y')(a_dict))
+        assertEqual('x-val', util.getter('x', a_dict))
+        assertEqual(None, util.getter('y', a_dict))
 
     def test_getter_obj(self):
 
@@ -180,8 +154,8 @@ class TestUtil(unittest.TestCase):
 
         thing = Thing({'x': 'x-val'})
 
-        assertEqual('x-val', util.getter('x')(thing))
-        assertEqual(None, util.getter('y')(thing))
+        assertEqual('x-val', util.getter('x', thing))
+        assertEqual(None, util.getter('y', thing))
 
     def test_maybe_map_simple(self):
         add_5 = lambda x: x + 5
@@ -308,47 +282,6 @@ class TestUtil(unittest.TestCase):
         ]
         get_val = lambda doc: doc['val']
         assertEqual({'val': 28}, util.max_mapped(get_val, sequence))
-
-    def test_deep_extend_pair(self):
-        obj = {
-            'x': {
-                'x1': {
-                    'v1': 5,
-                    'v2': 7
-                },
-                'nums': [1, 3, 5]
-            },
-            'a_list': [10, 20]
-        }
-        ext_with = {
-            'x': {
-                'x2': {
-                    'x2-key': 'x2-val'
-                },
-                'x1': {
-                    'v2': 'new-v2-val',
-                    'v3': 'v3-val'
-                },
-                'nums': [7, 9]
-            },
-            'a_list': 'new-a-list-val'
-        }
-        expected = {
-            'x': {
-                'x2': {
-                    'x2-key': 'x2-val'
-                },
-                'x1': {
-                    'v1': 5,
-                    'v2': 'new-v2-val',
-                    'v3': 'v3-val'
-                },
-                'nums': [1, 3, 5, 7, 9]
-            },
-            'a_list': 'new-a-list-val'
-        }
-        result = util.deep_extend_pair(obj, ext_with)
-        assertEqual(expected, result)
 
 
 class TestDictableSet(unittest.TestCase):

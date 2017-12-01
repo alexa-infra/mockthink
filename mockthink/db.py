@@ -25,12 +25,12 @@ def replace_array_elems_by_id(existing, replace_with):
     elem_index_by_id = {}
     for index in range(0, len(existing)):
         elem = existing[index]
-        elem_index_by_id[util.getter('id')(elem)] = index
+        elem_index_by_id[util.getter('id', elem)] = index
 
     to_return = util.clone_array(existing)
 
     for elem in replace_with:
-        index = elem_index_by_id[util.getter('id')(elem)]
+        index = elem_index_by_id[util.getter('id', elem)]
         change = {
             'old_val': existing[index],
             'new_val': elem

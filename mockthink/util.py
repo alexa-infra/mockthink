@@ -7,7 +7,7 @@ class GroupResults(defaultdict):
 
 def curry2(func):
     def out(x, *args):
-        if len(args):
+        if args:
             return func(x, args[0])
         def out2(y):
             return func(x, y)
@@ -16,12 +16,11 @@ def curry2(func):
 
 def curry3(func):
     def out(x, *args):
-        if not len(args):
+        if not args:
             return curry2(lambda y, z: func(x, y, z))
-        elif len(args) == 2:
+        if len(args) == 2:
             return func(x, *args)
-        else:
-            return curry2(lambda a, b: func(x, a, b))(args[0])
+        return curry2(lambda a, b: func(x, a, b))(args[0])
     return out
 
 def extend(*dicts):
@@ -33,32 +32,9 @@ def extend(*dicts):
 def clone(x):
     if isinstance(x, dict):
         return obj_clone(x)
-    elif isinstance(x, list):
+    if isinstance(x, list):
         return clone_array(x)
-    else:
-        return x
-
-def deep_extend_pair(dict1, dict2):
-    out = {}
-    out.update(dict1)
-    for k, v in dict2.items():
-        if k not in out:
-            out[k] = clone(v)
-        else:
-            d1_val = dict1[k]
-            if isinstance(d1_val, dict) and isinstance(v, dict):
-                out[k] = deep_extend_pair(d1_val, v)
-            elif isinstance(d1_val, list) and isinstance(v, list):
-                out[k] = cat(d1_val, v)
-            else:
-                out[k] = clone(v)
-    return out
-
-def deep_extend(*dicts):
-    out = {}
-    for one_dict in dicts:
-        out = deep_extend_pair(out, one_dict)
-    return out
+    return x
 
 def cat(*lists):
     out = []
@@ -88,42 +64,27 @@ def change_at(val, index, a_list):
     return cat(a_list[0:index], [val], a_list[right_start:])
 
 @curry2
-def extend_with(a_dict, to_extend):
-    return extend(to_extend, a_dict)
-
-@curry2
-def map_with(fn, a_list):
-    return list(map(fn, a_list))
-
-@curry2
 def maybe_map(fn, thing):
     if isinstance(thing, dict):
         return fn(thing)
-    elif is_iterable(thing):
+    if is_iterable(thing):
         return list(map(fn, thing))
-    else:
-        return fn(thing)
+    return fn(thing)
 
 @curry2
 def maybe_filter(fn, thing):
     if isinstance(thing, dict):
         return fn(thing)
-    elif is_iterable(thing):
+    if is_iterable(thing):
         return list(filter(fn, thing))
-    else:
-        return fn(thing)
-
-def is_simple(x):
-    return not (isinstance(x, (list, dict)))
+    return fn(thing)
 
 @curry2
 def has_attrs(attr_list, thing):
-    result = True
     for attr in attr_list:
         if attr not in thing:
-            result = False
-            break
-    return result
+            return False
+    return True
 
 @curry2
 def nth(n, things):
@@ -133,8 +94,7 @@ def nth(n, things):
 def getter(key, thing):
     if isinstance(thing, dict):
         return thing.get(key, None)
-    else:
-        return getattr(thing, key, None)
+    return getattr(thing, key, None)
 
 @curry3
 def match_attr(key, val, thing):
@@ -160,39 +120,22 @@ def ensure_list(x):
 def match_attrs(to_match, to_test):
     match = True
     for k, v in to_match.items():
-        if getter(k)(to_test) != v:
+        if getter(k, to_test) != v:
             match = False
             break
     return match
 
 @curry2
-def filter_with(func, things):
-    return filter(func, things)
-
-@curry2
 def find_first(pred, things):
-    result = None
     for thing in things:
         if pred(thing):
-            result = thing
-            break
-    return result
-
-def pipeline(*funcs):
-    def out(x):
-        result = x
-        for f in funcs:
-            result = f(result)
-        return result
-    return out
+            return thing
+    return None
 
 def pluck_with(*attrs):
     def inner_pluck(thing):
-        return {k: v for k,v in thing.items() if k in attrs}
+        return {k: v for k, v in thing.items() if k in attrs}
     return inner_pluck
-
-def get_by_id(id):
-    return find_first(match_attr('id', id))
 
 def as_obj(pairs):
     return {p[0]: p[1] for p in pairs}
@@ -248,7 +191,7 @@ def group_by_func(func, sequence):
     return output
 
 def is_num(x):
-    return isinstance(x, int) or isinstance(x, float)
+    return isinstance(x, (int, float))
 
 def safe_sum(nums):
     return sum(filter(is_num, nums))
@@ -272,9 +215,8 @@ def rql_str_split(string, split_on, limit=-1):
             # rql's string.split mimics python's except for splitting on empty string.
             # in that case python throws an error, while rql converts to char array
             return array_of_string(string)
-        else:
-            # pythons string.split() seems not to allow a limit with default split_on
-            return string.split()
+        # pythons string.split() seems not to allow a limit with default split_on
+        return string.split()
     return string.split(split_on, limit)
 
 def sort_by_one(sort_key, sequence, reverse=False):
@@ -297,23 +239,22 @@ def sort_by_many(keys_and_dirs, sequence):
     current_pass = sort_by_one(key_for_pass[0], sequence, reverse=(key_for_pass[1] == 'DESC'))
     if len(keys_and_dirs) == 1:
         return current_pass
-    else:
-        result = []
-        chunk = []
-        current_key = None
-        def handle_chunk():
-            result.extend(sort_by_many(keys_and_dirs[1:], chunk))
-        for elem in current_pass:
-            next_key = getter(key_for_pass[0], elem)
-            if next_key != current_key:
-                if chunk:
-                    handle_chunk()
-                chunk = [elem]
-            else:
-                chunk.append(elem)
-            current_key = next_key
-        handle_chunk()
-        return result
+    result = []
+    chunk = []
+    current_key = None
+    def handle_chunk():
+        result.extend(sort_by_many(keys_and_dirs[1:], chunk))
+    for elem in current_pass:
+        next_key = getter(key_for_pass[0], elem)
+        if next_key != current_key:
+            if chunk:
+                handle_chunk()
+            chunk = [elem]
+        else:
+            chunk.append(elem)
+        current_key = next_key
+    handle_chunk()
+    return result
 
 def indices_of_passing(pred, sequence):
     out = []
@@ -337,33 +278,27 @@ def sorted_iteritems(a_dict):
     for k in sorted(keys):
         yield k, a_dict[k]
 
-def sorted_list(a_list):
-    a_list = clone_array(a_list)
-    a_list.sort()
-    return a_list
-
 def make_hashable(x):
-    if is_simple(x):
-        return x
-    elif isinstance(x, list):
-        return tuple(make_hashable(elem) for elem in sorted_list(x))
-    elif isinstance(x, dict):
+    if isinstance(x, list):
+        return tuple(make_hashable(elem) for elem in sorted(x))
+    if isinstance(x, dict):
         out = []
         for k, v in sorted_iteritems(x):
             out.append((k, make_hashable(v)))
         return tuple(elem for elem in out)
+    return x
 
 class DictableSet(set):
     def __init__(self, elems):
         elems = map(make_hashable, elems)
-        super(DictableSet, self).__init__(elems)
+        super().__init__(elems)
 
     def add(self, elem):
         elem = make_hashable(elem)
-        super(DictableSet, self).add(elem)
+        super().add(elem)
 
     def has(self, elem):
-        return (make_hashable(elem) in self)
+        return make_hashable(elem) in self
 
 
 def dictable_distinct(sequence):
@@ -376,10 +311,7 @@ def dictable_distinct(sequence):
 
 @curry2
 def any_passing(pred, sequence):
-    result = False
     for elem in sequence:
         if pred(elem):
-            result = True
-            break
-    return result
-
+            return True
+    return False

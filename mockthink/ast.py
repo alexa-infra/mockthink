@@ -400,20 +400,20 @@ class ConcatMap(ByFuncBase):
 
 class Skip(BinExp):
     def do_run(self, sequence, num, arg, scope):
-        return util.drop(num)(sequence)
+        return util.drop(num, sequence)
 
 class Limit(BinExp):
     def do_run(self, sequence, num, arg, scope):
-        return util.take(num)(sequence)
+        return util.take(num, sequence)
 
 class Slice(BinExp):
     def do_run(self, sequence, indices, arg, scope):
         start, end = indices
-        return util.slice_with(start, end)(sequence)
+        return util.slice_with(start, end, sequence)
 
 class Nth(BinExp):
     def do_run(self, sequence, n, arg, scope):
-        return util.nth(n)(sequence)
+        return util.nth(n, sequence)
 
 class Sum1(MonExp):
     def do_run(self, sequence, arg, scope):
@@ -421,7 +421,7 @@ class Sum1(MonExp):
 
 class SumByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
-        return util.safe_sum([util.getter(field)(elem) for elem in sequence])
+        return util.safe_sum([util.getter(field, elem) for elem in sequence])
 
 class SumByFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):

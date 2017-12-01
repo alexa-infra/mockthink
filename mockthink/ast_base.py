@@ -273,7 +273,6 @@ def is_literal(x):
     return isinstance(x, (LITERAL_OBJECT, LITERAL_LIST))
 
 
-@util.curry2
 def rql_merge_with(ext_with, to_extend):
     out = {}
     out.update(to_extend)
@@ -299,3 +298,8 @@ def rql_merge_with(ext_with, to_extend):
             else:
                 out[k] = util.clone(v)
     return out
+
+def rql_merge_with_pred(ext_with):
+    def handler(to_extend):
+        return rql_merge_with(ext_with, to_extend)
+    return handler

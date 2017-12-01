@@ -288,7 +288,7 @@ class UpdateByFunc(ByFuncBase, UpdateMixin):
 class UpdateWithObj(BinExp, UpdateMixin):
     def do_run(self, sequence, to_update, arg, scope):
         self.validate_nested_query_status()
-        return self.update_table(util.maybe_map(ast_base.rql_merge_with(to_update), sequence), arg, scope)
+        return self.update_table(util.maybe_map(ast_base.rql_merge_with_pred(to_update), sequence), arg, scope)
 
 class Replace(BinExp, UpdateMixin):
     def do_run(self, left, right, arg, scope):
@@ -352,7 +352,7 @@ class FilterWithFunc(ByFuncBase):
 
 class FilterWithObj(BinExp):
     def do_run(self, sequence, to_match, arg, scope):
-        return list(filter(util.match_attrs(to_match), sequence))
+        return list(filter(util.match_attrs_pred(to_match), sequence))
 
 class MapWithRFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
@@ -365,7 +365,7 @@ class MapWithRFunc(ByFuncBase):
 
 class WithoutPoly(BinExp):
     def do_run(self, left, attrs, arg, scope):
-        return util.maybe_map(util.without(attrs), left)
+        return util.maybe_map(util.without_pred(attrs), left)
 
 class PluckPoly(BinExp):
     def do_run(self, left, attrs, arg, scope):
@@ -382,12 +382,12 @@ class MergePoly(BinExp):
         elif ast_base.has_nested_literal(ext_with):
             self.raise_rql_runtime_error('invalid nested r.literal()')
 
-        return util.maybe_map(ast_base.rql_merge_with(ext_with), left)
+        return util.maybe_map(ast_base.rql_merge_with_pred(ext_with), left)
 
 
 class HasFields(BinExp):
     def do_run(self, left, fields, arg, scope):
-        return util.maybe_filter(util.has_attrs(fields), left)
+        return util.maybe_filter(util.has_attrs_pred(fields), left)
 
 class WithFields(BinExp):
     def do_run(self, sequence, keys, arg, scope):
@@ -433,7 +433,7 @@ class Max1(MonExp):
 
 class MaxByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
-        return util.max_mapped(util.getter(field), sequence)
+        return util.max_mapped(util.getter_pred(field), sequence)
 
 class MaxByFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
@@ -445,7 +445,7 @@ class Avg1(MonExp):
 
 class AvgByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
-        return util.safe_average(map(util.getter(field), sequence))
+        return util.safe_average(map(util.getter_pred(field), sequence))
 
 class AvgByFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
@@ -469,7 +469,7 @@ class Min1(MonExp):
 
 class MinByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
-        return util.min_mapped(util.getter(field), sequence)
+        return util.min_mapped(util.getter_pred(field), sequence)
 
 class MinByFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
@@ -477,7 +477,7 @@ class MinByFunc(ByFuncBase):
 
 class GroupByField(BinExp):
     def do_run(self, elems, field, arg, scope):
-        return util.group_by_func(util.getter(field), elems)
+        return util.group_by_func(util.getter_pred(field), elems)
 
 class GroupByFunc(ByFuncBase):
     def do_run(self, sequence, map_fn, arg, scope):
@@ -527,7 +527,7 @@ class Sample(BinExp):
 
 class OffsetsOfValue(BinExp):
     def do_run(self, sequence, test_val, arg, scope):
-        return util.indices_of_passing(util.eq(test_val), list(sequence))
+        return util.indices_of_passing(util.eq_pred(test_val), list(sequence))
 
 class OffsetsOfFunc(ByFuncBase):
     def do_run(self, sequence, test_fn, arg, scope):
@@ -666,7 +666,7 @@ class DbList(RBase):
 
 class IndexCreateByField(BinExp):
     def do_run(self, sequence, field_name, arg, scope):
-        index_func = util.getter(field_name)
+        index_func = util.getter_pred(field_name)
         current_db = self.find_db_scope()
         current_table = self.find_table_scope()
         multi = self.optargs.get('multi', False)
@@ -824,7 +824,7 @@ class Between(Ternary):
         options = util.extend(defaults, self.optargs)
 
         if options['index'] == 'id':
-            map_fn = util.getter('id')
+            map_fn = util.getter_pred('id')
         else:
             map_fn, _ = self.find_index_func_for_scope(
                 options['index'],

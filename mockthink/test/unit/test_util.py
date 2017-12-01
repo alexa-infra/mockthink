@@ -6,12 +6,6 @@ from pprint import pprint
 from ... import util
 
 class TestUtil(unittest.TestCase):
-    def test_curry2(self):
-        fun = lambda x, y: x + y
-        curried = util.curry2(fun)
-        assertEqual(8, curried(5, 3))
-        assertEqual(8, curried(5)(3))
-
     def test_extend(self):
         dict_1 = {'x': 'x1-val', 'y': 'y1-val'}
         dict_2 = {'x': 'x2-val', 'z': 'z2-val'}

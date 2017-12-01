@@ -1,3 +1,4 @@
+from functools import partial
 import rethinkdb.ast as r_ast
 
 from . import ast as mt_ast
@@ -14,104 +15,96 @@ RQL_TYPE_HANDLERS = {}
 def type_dispatch(rql_node):
     return RQL_TYPE_HANDLERS[rql_node.__class__](rql_node)
 
-def handles_type(rql_type):
-    def wrapper(func):
-        def handler(node):
-            assert isinstance(node, rql_type)
-            return func(node)
-        RQL_TYPE_HANDLERS[rql_type] = handler
-        return handler
-    return wrapper
+def _handles_type(rql_type, func):
+    def handler(node):
+        assert isinstance(node, rql_type)
+        return func(node)
+    RQL_TYPE_HANDLERS[rql_type] = handler
+    return handler
+
+handles_type = lambda rql_type: partial(_handles_type, rql_type)
 
 def process_optargs(node):
     if hasattr(node, 'optargs') and node.optargs:
         return {k: plain_val_of_datum(v) for k, v in node.optargs.items()}
     return {}
 
-def handle_generic_zerop(mt_constructor):
-    def handler(node):
-        return mt_constructor(optargs=process_optargs(node))
-    return handler
+def _handle_generic_zerop(mt_constructor, node):
+    return mt_constructor(optargs=process_optargs(node))
 
-def handle_generic_monop(mt_constructor):
-    def handler(node):
-        return mt_constructor(type_dispatch(node._args[0]), optargs=process_optargs(node))
-    return handler
+def _handle_generic_monop(mt_constructor, node):
+    return mt_constructor(type_dispatch(node._args[0]), optargs=process_optargs(node))
 
-def handle_generic_binop(mt_constructor):
-    def handler(node):
+def _handle_generic_binop(mt_constructor, node):
+    return mt_constructor(
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
+        optargs=process_optargs(node)
+    )
+
+def _handle_generic_binop_opt(mt_constructor, node):
+    return mt_constructor(
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]) if len(node._args) == 2 else None,
+        optargs=process_optargs(node)
+    )
+
+def _handle_generic_binop_poly_2(mt_type_map, node):
+    for rtype, m_type in mt_type_map.items():
+        if isinstance(node._args[1], rtype):
+            mt_constructor = m_type
+            break
+    return mt_constructor(
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
+        optargs=process_optargs(node)
+    )
+
+def _handle_generic_ternop(mt_constructor, node):
+    assert len(node._args) == 3
+    args = [type_dispatch(arg) for arg in node._args]
+    return mt_constructor(*args, optargs=process_optargs(node))
+
+def _handle_generic_aggregation(mt_type_map, node):
+    optargs = process_optargs(node)
+    if len(node._args) == 1:
+        mt_constructor = mt_type_map[1]
         return mt_constructor(
             type_dispatch(node._args[0]),
-            type_dispatch(node._args[1]),
-            optargs=process_optargs(node)
+            optargs=optargs
         )
-    return handler
-
-def handle_generic_binop_opt(mt_constructor):
-    def handler(node):
-        return mt_constructor(
-            type_dispatch(node._args[0]),
-            type_dispatch(node._args[1]) if len(node._args) == 2 else None,
-            optargs=process_optargs(node)
-        )
-    return handler
-
-def handle_generic_binop_poly_2(mt_type_map):
-    def handler(node):
-        for rtype, m_type in mt_type_map.items():
+    else:
+        for rtype, m_type in mt_type_map[2].items():
             if isinstance(node._args[1], rtype):
                 mt_constructor = m_type
                 break
-        return mt_constructor(
-            type_dispatch(node._args[0]),
-            type_dispatch(node._args[1]),
-            optargs=process_optargs(node)
-        )
-    return handler
+    return mt_constructor(
+        type_dispatch(node._args[0]),
+        type_dispatch(node._args[1]),
+        optargs=optargs
+    )
 
-def handle_generic_ternop(mt_constructor):
-    def handler(node):
-        assert len(node._args) == 3
-        args = [type_dispatch(arg) for arg in node._args]
-        return mt_constructor(*args, optargs=process_optargs(node))
-    return handler
-
-def handle_generic_aggregation(mt_type_map):
-    def handler(node):
-        optargs = process_optargs(node)
-        if len(node._args) == 1:
-            mt_constructor = mt_type_map[1]
-            return mt_constructor(
-                type_dispatch(node._args[0]),
-                optargs=optargs
-            )
-        else:
-            for rtype, m_type in mt_type_map[2].items():
-                if isinstance(node._args[1], rtype):
-                    mt_constructor = m_type
-                    break
-        return mt_constructor(
-            type_dispatch(node._args[0]),
-            type_dispatch(node._args[1]),
-            optargs=optargs
-        )
-    return handler
+handle_generic_zerop = lambda ctor: partial(_handle_generic_zerop, ctor)
+handle_generic_monop = lambda ctor: partial(_handle_generic_monop, ctor)
+handle_generic_binop = lambda ctor: partial(_handle_generic_binop, ctor)
+handle_generic_binop_opt = lambda ctor: partial(_handle_generic_binop_opt, ctor)
+handle_generic_binop_poly_2 = lambda ctor: partial(_handle_generic_binop_poly_2, ctor)
+handle_generic_ternop = lambda ctor: partial(_handle_generic_ternop, ctor)
+handle_generic_aggregation = lambda ctor: partial(_handle_generic_aggregation, ctor)
+handle_n_ary = lambda ctor: partial(_handle_n_ary, ctor)
 
 GENERIC_BY_ARITY = {
-    0: handle_generic_zerop,
-    1: handle_generic_monop,
-    2: handle_generic_binop,
-    3: handle_generic_ternop
+    0: _handle_generic_zerop,
+    1: _handle_generic_monop,
+    2: _handle_generic_binop,
+    3: _handle_generic_ternop
 }
 
-def handle_n_ary(arity_type_map):
-    def handler(node):
-        arg_len = len(node._args)
-        rmethod = GENERIC_BY_ARITY[arg_len]
-        rtype = arity_type_map[arg_len]
-        real_hanler = rmethod(rtype)
-        return real_hanler(node)
-    return handler
+def _handle_n_ary(arity_type_map, node):
+    arg_len = len(node._args)
+    rmethod = GENERIC_BY_ARITY[arg_len]
+    rtype = arity_type_map[arg_len]
+    return rmethod(rtype, node)
 
 def makearray_of_datums(datum_list):
     out = []
@@ -123,25 +116,24 @@ def makearray_of_datums(datum_list):
         out.append(type_dispatch(elem))
     return mt_ast.MakeArray(out)
 
-def binop_splat(mt_constructor):
-    def handler(node):
-        args = node._args
-        left = type_dispatch(args[0])
-        if isinstance(args[1], r_ast.MakeArray):
-            right = type_dispatch(args[1])
-        else:
-            right = makearray_of_datums(args[1:])
-        return mt_constructor(left, right, optargs=process_optargs(node))
-    return handler
-
-def binop_variable(mt_constructor):
-    def handler(node):
-        args = node._args
-        left = type_dispatch(args[0])
+def _binop_splat(mt_constructor, node):
+    args = node._args
+    left = type_dispatch(args[0])
+    if isinstance(args[1], r_ast.MakeArray):
+        right = type_dispatch(args[1])
+    else:
         right = makearray_of_datums(args[1:])
-        return mt_constructor(left, right, optargs=process_optargs(node))
-    return handler
+    return mt_constructor(left, right, optargs=process_optargs(node))
 
+binop_splat = lambda ctor: partial(_binop_splat, ctor)
+
+def _binop_variable(mt_constructor, node):
+    args = node._args
+    left = type_dispatch(args[0])
+    right = makearray_of_datums(args[1:])
+    return mt_constructor(left, right, optargs=process_optargs(node))
+
+binop_variable = lambda ctor: partial(_binop_variable, ctor)
 
 #
 #   ReQL functions have an arity one greater than they seem to.
@@ -378,10 +370,10 @@ for r_type, mt_type in OPS_BY_ARITY.items():
 
 for r_type, type_map in NORMAL_AGGREGATIONS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_aggregation(type_map)
+
 @handles_type(r_ast.Datum)
 def handle_datum(node):
     return mt_ast.RDatum(node.data)
-
 
 @handles_type(r_ast.MakeArray)
 def handle_make_array(node):

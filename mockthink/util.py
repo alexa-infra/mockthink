@@ -1,18 +1,10 @@
 from collections import defaultdict
+from functools import partial
 
 
 class GroupResults(defaultdict):
     def __init__(self, *args, **kwargs):
         super().__init__(lambda: [], *args, **kwargs)
-
-def curry2(func):
-    def out(x, *args):
-        if args:
-            return func(x, args[0])
-        def out2(y):
-            return func(x, y)
-        return out2
-    return out
 
 def extend(*dicts):
     out = {}
@@ -33,11 +25,9 @@ def cat(*lists):
         out.extend(one_list)
     return out
 
-@curry2
 def append(elem, a_list):
     return cat(a_list, [elem])
 
-@curry2
 def prepend(elem, a_list):
     return cat([elem], a_list)
 
@@ -51,7 +41,6 @@ def change_at(val, index, a_list):
     right_start = index + 1
     return cat(a_list[0:index], [val], a_list[right_start:])
 
-@curry2
 def maybe_map(fn, thing):
     if isinstance(thing, dict):
         return fn(thing)
@@ -59,7 +48,6 @@ def maybe_map(fn, thing):
         return list(map(fn, thing))
     return fn(thing)
 
-@curry2
 def maybe_filter(fn, thing):
     if isinstance(thing, dict):
         return fn(thing)
@@ -67,30 +55,28 @@ def maybe_filter(fn, thing):
         return list(filter(fn, thing))
     return fn(thing)
 
-@curry2
 def has_attrs(attr_list, thing):
     for attr in attr_list:
         if attr not in thing:
             return False
     return True
 
-@curry2
+has_attrs_pred = lambda attr_list: partial(has_attrs, attr_list)
+
 def nth(n, things):
     return things[n]
 
-@curry2
 def getter(key, thing):
     if isinstance(thing, dict):
         return thing.get(key, None)
     return getattr(thing, key, None)
 
+getter_pred = lambda key: partial(getter, key)
+
 def match_attr(key, val, thing):
     return getter(key, thing) == val
 
-def match_attr_pred(key, val):
-    def handler(things):
-        return match_attr(key, val, things)
-    return handler
+match_attr_pred = lambda key, val: partial(match_attr, key, val)
 
 def match_attr_multi(key, good_vals, thing):
     thing_val = getter(key, thing)
@@ -101,26 +87,21 @@ def match_attr_multi(key, good_vals, thing):
             break
     return result
 
-def match_attr_multi_pred(key, good_vals):
-    def handler(things):
-        return match_attr_multi(key, good_vals, things)
-    return handler
+match_attr_multi_pred = lambda key, good_vals: partial(match_attr_multi, key, good_vals)
 
 def ensure_list(x):
     if not isinstance(x, list):
         x = [x]
     return x
 
-@curry2
 def match_attrs(to_match, to_test):
-    match = True
     for k, v in to_match.items():
         if getter(k, to_test) != v:
-            match = False
-            break
-    return match
+            return False
+    return True
 
-@curry2
+match_attrs_pred = lambda to_match: partial(match_attrs, to_match)
+
 def find_first(pred, things):
     for thing in things:
         if pred(thing):
@@ -138,9 +119,10 @@ def as_obj(pairs):
 def clone_array(x):
     return [elem for elem in x]
 
-@curry2
 def without(bad_attrs, thing):
     return {k: v for k, v in thing.items() if k not in bad_attrs}
+
+without_pred = lambda bad_attrs: partial(without, bad_attrs)
 
 def obj_clone(a_dict):
     return {k: v for k, v in a_dict.items()}
@@ -148,18 +130,15 @@ def obj_clone(a_dict):
 def is_iterable(x):
     return hasattr(x, '__iter__')
 
-@curry2
 def drop(n, a_list):
     return a_list[n:]
 
-@curry2
 def take(n, a_list):
     return a_list[0:n]
 
 def slice_with(start, end, a_list):
     return a_list[start:end]
 
-@curry2
 def max_mapped(func, sequence):
     current = (func(sequence[0]), sequence[0])
     for elem in sequence[1:]:
@@ -168,7 +147,6 @@ def max_mapped(func, sequence):
             current = (val, elem)
     return current[1]
 
-@curry2
 def min_mapped(func, sequence):
     current = (func(sequence[0]), sequence[0])
     for elem in sequence[1:]:
@@ -177,7 +155,6 @@ def min_mapped(func, sequence):
             current = (val, elem)
     return current[1]
 
-@curry2
 def group_by_func(func, sequence):
     output = GroupResults()
     for elem in sequence:
@@ -263,9 +240,10 @@ def without_indices(indices, sequence):
         if index not in indices:
             yield sequence[index]
 
-@curry2
 def eq(x, y):
     return x == y
+
+eq_pred = lambda x: partial(eq, x)
 
 def sorted_iteritems(a_dict):
     keys = a_dict.keys()
@@ -303,7 +281,6 @@ def dictable_distinct(sequence):
             yield elem
 
 
-@curry2
 def any_passing(pred, sequence):
     for elem in sequence:
         if pred(elem):

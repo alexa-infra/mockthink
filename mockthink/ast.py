@@ -158,6 +158,18 @@ class Get(BinExp):
         return util.find_first(util.match_attr_pred('id', right), left)
 
 class GetAll(BinExp):
+    def get_multi(self, left, right, map_fn): # pylint: disable=no-self-use
+        first = next(iter(left), None)
+        if not first:
+            return []
+        first_index = map_fn(first)
+        is_compound = isinstance(first_index, (tuple, list))
+        if is_compound:
+            match = lambda x: any([it in map_fn(x) for it in right])
+        else:
+            match = lambda x: any([it == map_fn(x) for it in right])
+        return [el for el in left if match(el)]
+
     def do_run(self, left, right, arg, scope):
         if 'index' in self.optargs and self.optargs['index'] != 'id':
             index_func, is_multi = self.find_index_func_for_scope(
@@ -169,29 +181,10 @@ class GetAll(BinExp):
             else:
                 map_fn = index_func
 
-            result = []
-            left = list(left)
             if is_multi:
-                seen_ids = set([])
-                for elem in left:
-                    indexed = map_fn(elem)
-                    if not isinstance(indexed, (tuple, list)):
-                        indexed = [indexed]
-                    indexed = set(indexed)
-                    for match_item in right:
-                        if match_item in indexed:
-                            if elem['id'] not in seen_ids:
-                                seen_ids.add(elem['id'])
-                                result.append(elem)
-                            break
-            else:
-                for elem in left:
-                    if map_fn(elem) in right:
-                        result.append(elem)
-            return result
-
-        else:
-            return list(filter(util.match_attr_multi_pred('id', right), left))
+                return self.get_multi(left, right, map_fn)
+            return [el for el in left if map_fn(el) in right]
+        return list(filter(util.match_attr_multi_pred('id', right), left))
 
 class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):

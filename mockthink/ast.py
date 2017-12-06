@@ -972,8 +972,22 @@ class Args(RBase):
 class Binary(RBase):
     pass
 
-class ForEach(RBase):
-    pass
+class ForEach(ByFuncBase):
+    def run(self, arg, scope):
+        seq = self.left.run(arg, scope)
+        assert util.is_iterable(seq)
+        assert isinstance(self.right, RFunc)
+        db = arg
+        summary = {}
+        for item in seq:
+            db, report = self.right.run(item, db, scope)
+            for k, v in report.items():
+                assert isinstance(v, (int, list))
+                if k in summary:
+                    summary[k] += v
+                else:
+                    summary[k] = v
+        return db, summary
 
 class RDefault(BinExp):
     def run(self, arg, scope):
@@ -1002,6 +1016,8 @@ class CoerceTo(BinExp):
             if isinstance(res, dict):
                 return list(res.items())
             return list(res)
+        if rname.upper() == 'STRING':
+            return str(res)
         return res
 
 class Info(RBase):

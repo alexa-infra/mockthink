@@ -199,6 +199,50 @@ class TestCompoundIndex(MockTest):
         assertEqual(expected, results)
 
 
+class TestForEach(MockTest):
+    @staticmethod
+    def get_data():
+        npc = []
+        return as_db_and_table('x', 'npc', npc)
+
+    def test_for_each_insert(self, conn):
+        query = r.expr([1, 2, 3, 4])
+        query = query.for_each(lambda x:
+            r.db('x').table('npc').insert(dict(id=x, name='zombie' + x.coerce_to('string')))
+        )
+        res = query.run(conn)
+        assert 'inserted' in res
+        assert res['inserted'] == 4
+        query = r.db('x').table('npc')
+        query = query.get_field('name')
+        results = query.run(conn)
+        expected = ['zombie1', 'zombie2', 'zombie3', 'zombie4']
+        assertEqUnordered(expected, results)
+
+    def test_for_each_update(self, conn):
+        query = r.db('x').table('npc')
+        query = query.insert([
+            dict(name='zombie1', kind='zombie'),
+            dict(name='zombie2', kind='zombie'),
+            dict(name='hero1', kind='hero')
+        ])
+        query.run(conn)
+        query = r.db('x').table('npc')
+        query = query.filter(r.row['kind'].eq('zombie'))
+        query = query.for_each(lambda x:
+            r.table('npc').get(x['id']).update(dict(is_dead=True))
+        )
+        res = query.run(conn)
+        assert 'replaced' in res
+        assert res['replaced'] == 2
+        query = r.db('x').table('npc')
+        query = query.filter(r.row.has_fields('is_dead'))
+        query = query.get_field('name')
+        results = query.run(conn)
+        expected = ['zombie1', 'zombie2']
+        assertEqUnordered(expected, results)
+
+
 class TestBracket(MockTest):
     @staticmethod
     def get_data():

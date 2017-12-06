@@ -109,6 +109,13 @@ def _handle_n_ary(arity_type_map, node):
 def makearray_of_datums(datum_list):
     out = []
     for elem in datum_list:
+        if isinstance(elem, r_ast.Args):
+            assert len(elem._args) == 1
+            assert isinstance(elem._args[0], r_ast.MakeArray)
+            arr_node = elem._args[0]
+            for arg in arr_node._args:
+                out.append(type_dispatch(arg))
+            continue
         expected_types = (r_ast.Datum, r_ast.Asc, r_ast.Desc,
                           r_ast.Func, r_ast.MakeArray, r_ast.MakeObj)
         if not isinstance(elem, expected_types):

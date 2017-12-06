@@ -243,6 +243,41 @@ class TestForEach(MockTest):
         assertEqUnordered(expected, results)
 
 
+class TestArgs(MockTest):
+    @staticmethod
+    def get_data():
+        npc = [
+            {'id': 'joe-id', 'name': 'joe', 'team': 'red', 'deleted': False},
+            {'id': 'bob-id', 'name': 'bob', 'team': 'red', 'deleted': True},
+            {'id': 'bill-id', 'name': 'bill', 'team': 'red', 'deleted': True},
+            {'id': 'kimye-id', 'name': 'kimye', 'team': 'green', 'deleted': False}
+        ]
+        return as_db_and_table('x', 'npc', npc)
+
+    def test_get_all_args(self, conn):
+        query = r.db('x').table('npc')
+        args = ['joe-id', 'bill-id']
+        query = query.get_all(r.args(args))
+        query = query.get_field('name')
+        results = query.run(conn)
+        expected = ['joe', 'bill']
+        assertEqUnordered(expected, results)
+
+    def test_contains_args(self, conn):
+        query = r.expr([1, 2, 3])
+        query = query.contains(r.args([1, 2]))
+        result = query.run(conn)
+        assert result == True
+        query = r.expr([1, 2, 3])
+        query = query.contains(r.args([1, 2]), r.args([4]))
+        result = query.run(conn)
+        assert result == False
+        query = r.expr([1, 2, 3])
+        query = query.contains(r.args([1, 2]), r.args([3]))
+        result = query.run(conn)
+        assert result == True
+
+
 class TestBracket(MockTest):
     @staticmethod
     def get_data():

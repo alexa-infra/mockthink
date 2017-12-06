@@ -929,7 +929,7 @@ class DayOfWeek(MonExp):
 
 class Now(RBase):
     def run(self, arg, scope): # pylint: disable=no-self-use
-        return arg.get_now_time()
+        return arg.now_time
 
 class ToEpochTime(MonExp):
     def do_run(self, dtime, arg, scope): # pylint: disable=no-self-use

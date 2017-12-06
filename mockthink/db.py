@@ -195,13 +195,13 @@ class MockDb(object):
 
     def get_db(self, db_name):
         if db_name is None:
-            db_name = self.get_default_db()
+            db_name = self.default_db
         assert db_name is not None
         return self.dbs_by_name[db_name]
 
     def set_db(self, db_name, db_data_instance):
         if db_name is None:
-            db_name = self.get_default_db()
+            db_name = self.default_db
         assert db_name is not None
         assert isinstance(db_data_instance, MockDbData)
         dbs_by_name = util.obj_clone(self.dbs_by_name)
@@ -284,11 +284,13 @@ class MockDb(object):
     def is_multi_index(self, db_name, table_name, index_name):
         return self.get_db(db_name).get_table(table_name).is_multi_index(index_name)
 
-    def get_now_time(self):
-        return self.mockthink.get_now_time()
+    @property
+    def now_time(self):
+        return self.mockthink.now_time
 
-    def get_default_db(self):
-        return self.mockthink.get_default_db()
+    @property
+    def default_db(self):
+        return self.mockthink.default_db
 
 def objects_from_pods(data):
     dbs_by_name = {}
@@ -320,8 +322,11 @@ class MockThinkConn(object):
 
 class MockThink(object):
     def __init__(self, initial_data):
+        self.data = None
         self._modify_initial_data(initial_data)
         self.tzinfo = rethinkdb.make_timezone('00:00')
+        self._now_time = None
+        self._default_db = None
 
     def _modify_initial_data(self, new_data):
         self.initial_data = new_data
@@ -336,13 +341,13 @@ class MockThink(object):
             # so it should have the same result each time within that query.
             # But we don't do anything if now_time has already been set.
 
-            if not hasattr(self, 'now_time'):
+            if not self.now_time:
                 temp_now_time = True
-                self.now_time = self.get_now_time()
+                self._now_time = self.now_time
 
-            if not hasattr(self, 'default_db'):
+            if not self.default_db:
                 temp_default_db = True
-                self.default_db = db
+                self._default_db = db
 
             scope = Scope()
             result = query.run(self.data, scope)
@@ -359,9 +364,9 @@ class MockThink(object):
             return result
         finally:
             if temp_now_time:
-                delattr(self, 'now_time')
+                self._now_time = None
             if temp_default_db:
-                delattr(self, 'default_db')
+                self._default_db = None
 
     def reset(self):
         self.data = objects_from_pods(self.initial_data)
@@ -371,17 +376,15 @@ class MockThink(object):
         conn = MockThinkConn(self, db)
         return conn
 
-    def set_now_time(self, dtime):
-        self.now_time = dtime
-
-    def get_now_time(self):
-        if hasattr(self, 'now_time'):
-            return self.now_time
+    @property
+    def now_time(self):
+        if self._now_time:
+            return self._now_time
         return rtime.now()
 
-    def get_default_db(self):
-        attr = getattr(self, 'default_db', None)
-        return attr
+    @property
+    def default_db(self):
+        return self._default_db
 
     @contextlib.contextmanager
     def connect(self, db=None):

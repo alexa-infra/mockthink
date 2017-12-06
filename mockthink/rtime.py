@@ -1,6 +1,6 @@
-import rethinkdb
 import datetime
-import time
+import rethinkdb
+
 
 def to_date(dt, timezone=None):
     return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=dt.tzinfo)

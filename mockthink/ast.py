@@ -288,7 +288,9 @@ class UpdateByFunc(ByFuncBase, UpdateMixin):
 class UpdateWithObj(BinExp, UpdateMixin):
     def do_run(self, sequence, to_update, arg, scope):
         self.validate_nested_query_status()
-        return self.update_table(util.maybe_map(ast_base.rql_merge_with_pred(to_update), sequence), arg, scope)
+        merge_with_update = ast_base.rql_merge_with_pred(to_update)
+        updated_data = util.maybe_map(merge_with_update, sequence)
+        return self.update_table(updated_data, arg, scope)
 
 class Replace(BinExp, UpdateMixin):
     def do_run(self, left, right, arg, scope):
@@ -339,7 +341,10 @@ class Insert(BinExp):
 
         to_insert = list(map(ensure_id, list(to_insert)))
         settings = self.get_insert_settings()
-        result, report = arg.insert_into_table_in_db(current_db, current_table, to_insert, conflict=settings['conflict'])
+        result, report = arg.insert_into_table_in_db(
+            current_db, current_table, to_insert,
+            conflict=settings['conflict']
+        )
         if not settings['return_changes']:
             del report['changes']
         if generated_keys:
@@ -603,7 +608,7 @@ class ContainsFuncs(RBase):
 
     def iter_preds(self, context, scope):
         for pred in self.right.vals:
-            yield lambda doc: pred.run([doc], context, scope)
+            yield lambda doc, item=pred: item.run([doc], context, scope)
 
     def run(self, arg, scope):
         sequence = list(self.left.run(arg, scope))
@@ -973,6 +978,9 @@ class Binary(RBase):
     pass
 
 class ForEach(ByFuncBase):
+    def do_run(self, left, fn, arg, scope):
+        pass
+
     def run(self, arg, scope):
         seq = self.left.run(arg, scope)
         assert util.is_iterable(seq)

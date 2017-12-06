@@ -111,7 +111,7 @@ def makearray_of_datums(datum_list):
     for elem in datum_list:
         expected_types = (r_ast.Datum, r_ast.Asc, r_ast.Desc,
                           r_ast.Func, r_ast.MakeArray, r_ast.MakeObj)
-        if elem.__class__ not in expected_types:
+        if not isinstance(elem, expected_types):
             raise TypeError('unexpected elem type: %s' % elem)
         out.append(type_dispatch(elem))
     return mt_ast.MakeArray(out)
@@ -402,7 +402,7 @@ def handle_order_by(node):
             right.append(mt_ast.Asc(type_dispatch(elem)))
         else:
             accepted = (r_ast.Desc, r_ast.Asc, r_ast.Func)
-            assert elem.__class__ in accepted
+            assert isinstance(elem, accepted)
             right.append(type_dispatch(elem))
     if isinstance(right[0], mt_ast.RFunc):
         right = right[0]

@@ -1,4 +1,5 @@
 import operator
+import math
 import random
 import uuid
 import json
@@ -185,6 +186,19 @@ class GetAll(BinExp):
                 return self.get_multi(left, right, map_fn)
             return [el for el in left if map_fn(el) in right]
         return list(filter(util.match_attr_multi_pred('id', right), left))
+
+class MonOp(MonExp):
+    def do_run(self, left, arg, scope):
+        return self.monop(left)
+
+class Floor(MonOp):
+    monop = math.floor
+
+class Ceil(MonOp):
+    monop = math.ceil
+
+class Round(MonOp):
+    monop = round
 
 class BinOp(BinExp):
     def do_run(self, left, right, arg, scope):

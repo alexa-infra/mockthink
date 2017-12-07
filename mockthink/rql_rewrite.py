@@ -199,6 +199,9 @@ NORMAL_MONOPS = {
     r_ast.ISO8601: mt_ast.ISO8601,
     r_ast.TableCreateTL: mt_ast.TableCreateTL,
     r_ast.TableDropTL: mt_ast.TableDropTL,
+    r_ast.Floor: mt_ast.Floor,
+    r_ast.Round: mt_ast.Round,
+    r_ast.Ceil: mt_ast.Ceil,
 }
 
 #   2-ary reql terms which don't need any special handling
@@ -484,7 +487,11 @@ def handle_contains(node):
     return mt_ast.ContainsElems(sequence, rest, optargs=optargs)
 
 def plain_val_of_datum(datum_node):
-    return datum_node.data
+    if hasattr(datum_node, 'data'):
+        return datum_node.data
+    arg = datum_node._args[0]
+    mt_arg = type_dispatch(arg)
+    return mt_arg.run(None, None)
 
 def plain_list_of_make_array(make_array_instance):
     assert isinstance(make_array_instance, r_ast.MakeArray)

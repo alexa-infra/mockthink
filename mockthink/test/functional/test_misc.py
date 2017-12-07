@@ -278,6 +278,45 @@ class TestArgs(MockTest):
         assert result == True
 
 
+class TestMathMonops(MockTest):
+    @staticmethod
+    def get_data():
+        return as_db_and_table('x', 'a', [])
+
+    def test_ceil(self, conn):
+        result = r.ceil(12.54).run(conn)
+        expected = 13
+        assert expected == result
+        result = r.ceil(12.34).run(conn)
+        expected = 13
+        assert expected == result
+        result = r.expr(12.34).ceil().run(conn)
+        expected = 13
+        assert expected == result
+
+    def test_round(self, conn):
+        result = r.round(12.54).run(conn)
+        expected = 13
+        assert expected == result
+        result = r.round(12.34).run(conn)
+        expected = 12
+        assert expected == result
+        result = r.expr(12.34).round().run(conn)
+        expected = 12
+        assert expected == result
+
+    def test_floor(self, conn):
+        result = r.floor(12.54).run(conn)
+        expected = 12
+        assert expected == result
+        result = r.floor(12.34).run(conn)
+        expected = 12
+        assert expected == result
+        result = r.expr(12.34).floor().run(conn)
+        expected = 12
+        assert expected == result
+
+
 class TestBracket(MockTest):
     @staticmethod
     def get_data():

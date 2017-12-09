@@ -809,7 +809,6 @@ class StrSplitOnLimit(Ternary):
 
 
 
-
 def operators_for_bounds(left_bound, right_bound):
     if left_bound == 'closed':
         left_oper = operator.ge
@@ -838,18 +837,54 @@ class Between(Ternary):
         if options['index'] == 'id':
             map_fn = util.getter_pred('id')
         else:
-            map_fn, _ = self.find_index_func_for_scope(
+            index_fn, _ = self.find_index_func_for_scope(
                 options['index'],
                 arg
             )
+            if isinstance(index_fn, RFunc):
+                map_fn = lambda d: index_fn.run([d], arg, scope)
+            else:
+                map_fn = index_fn
 
         left_test, right_test = operators_for_bounds(
             options['left_bound'], options['right_bound']
         )
-        for document in table:
-            doc_val = map_fn(document)
-            if left_test(doc_val, lower_key) and right_test(doc_val, upper_key):
-                yield document
+        first = next(iter(table), None)
+        if not first:
+            return []
+        first_index = map_fn(first)
+        is_compound = isinstance(first_index, (list, tuple))
+        def convert_limits(limit, data):
+            if isinstance(limit, (MinConst, MaxConst)):
+                return limit.get_value_for_type(data)
+            return limit
+        if is_compound:
+            assert isinstance(lower_key, (list, tuple))
+            assert isinstance(upper_key, (list, tuple))
+            lower_key = [convert_limits(l, v) for v, l in
+                         zip(first_index, lower_key)]
+            upper_key = [convert_limits(u, v) for v,  u in
+                         zip(first_index, upper_key)]
+            for document in table:
+                doc_val = map_fn(document)
+                match = True
+                for val, lower, upper in zip(doc_val, lower_key, upper_key):
+                    if operator.eq(val, lower) or operator.eq(val, upper):
+                        continue
+                    elif operator.gt(val, lower) and operator.lt(val, upper):
+                        break
+                    else:
+                        match = False
+                        break
+                if match:
+                    yield document
+        else:
+            lower_key = convert_limits(lower_key, first_index)
+            upper_key = convert_limits(upper_key, first_index)
+            for document in table:
+                doc_val = map_fn(document)
+                if left_test(doc_val, lower_key) and right_test(doc_val, upper_key):
+                    yield document
 
 class InsertAt(Ternary):
     def do_run(self, sequence, index, value, arg, scope):
@@ -1040,3 +1075,25 @@ class Info(RBase):
 
 class Http(RBase):
     pass
+
+class MaxConst(RBase):
+    def run(self, arg, scope):
+        return self
+
+    def get_value_for_type(self, val):
+        if isinstance(val, datetime):
+            return rtime.max()
+        if isinstance(val, (int, float)):
+            return float('inf')
+        return None
+
+class MinConst(RBase):
+    def run(self, arg, scope):
+        return self
+
+    def get_value_for_type(self, val):
+        if isinstance(val, datetime):
+            return rtime.min()
+        if isinstance(val, (int, float)):
+            return float('-inf')
+        return None

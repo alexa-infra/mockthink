@@ -20,6 +20,14 @@ def now():
     dtime = datetime.datetime.utcnow()
     return dtime.replace(tzinfo=rethinkdb.make_timezone('00:00'))
 
+def min():
+    dtime = datetime.datetime.min
+    return dtime.replace(tzinfo=rethinkdb.make_timezone('00:00'))
+
+def max():
+    dtime = datetime.datetime.max
+    return dtime.replace(tzinfo=rethinkdb.make_timezone('00:00'))
+
 def create_rql_timezone(timezone_string):
     if timezone_string == 'Z':
         return rethinkdb.make_timezone('00:00')

@@ -1,5 +1,6 @@
 from functools import partial
 import rethinkdb.ast as r_ast
+from rethinkdb.query import RqlConstant
 
 from . import ast as mt_ast
 
@@ -23,6 +24,15 @@ def _handles_type(rql_type, func):
     return handler
 
 handles_type = lambda rql_type: partial(_handles_type, rql_type)
+
+def handle_const(node):
+    if node.st == 'minval':
+        return mt_ast.MinConst(node)
+    if node.st == 'maxval':
+        return mt_ast.MaxConst(node)
+    return None
+
+RQL_TYPE_HANDLERS[RqlConstant] = handle_const
 
 def process_optargs(node):
     if hasattr(node, 'optargs') and node.optargs:

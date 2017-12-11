@@ -550,7 +550,7 @@ class OrderByIndex(BinExp):
         index, direction = parse_key_direction(index)
         index_fn = self.get_index_func(index, arg, scope)
         sequence = sort_by_func(sequence, index_fn, direction)
-        return sequence
+        return iter(sequence)
 
 class OrderByKeys(OrderByIndex):
     def do_run(self, sequence, keys, arg, scope):
@@ -558,7 +558,7 @@ class OrderByKeys(OrderByIndex):
             key, direction = parse_key_direction(key)
             map_fn = key_or_getter(key, arg, scope)
             sequence = sort_by_func(sequence, map_fn, direction)
-        return sequence
+        return iter(sequence)
 
 class Random0(RBase):
     def run(self, arg, scope): # pylint: disable=no-self-use

@@ -99,10 +99,17 @@ class Keys(MonExp):
         return left.keys()
 
 class Asc(MonExp):
+    def run(self, arg, scope):
+        if isinstance(self.left, RFunc):
+            left = self.left
+        else:
+            left = self.left.run(arg, scope)
+        return self.do_run(left, arg, scope)
+
     def do_run(self, left, arg, scope):
         return (left, 'ASC')
 
-class Desc(MonExp):
+class Desc(Asc):
     def do_run(self, left, arg, scope):
         return (left, 'DESC')
 
@@ -503,15 +510,55 @@ class Prepend(BinExp):
     def do_run(self, sequence, value, arg, scope):
         return util.prepend(value, sequence)
 
-class OrderByFunc(ByFuncBase):
-    def do_run(self, sequence, func, arg, scope):
-        tups = [(item, func(item)) for item in sequence]
-        tups.sort(key=lambda x: x[1])
-        return [item[0] for item in tups]
+def sort_by_func(sequence, func, direction):
+    reverse = direction == 'DESC'
+    return sorted(sequence, key=func, reverse=reverse)
 
-class OrderByKeys(BinExp):
+def parse_key_direction(key):
+    if isinstance(key, str):
+        return key, 'ASC'
+    if isinstance(key, (list, tuple)):
+        key, direction = key
+        assert direction in ('ASC', 'DESC')
+        return key, direction
+    return key, 'ASC'
+
+def convert_func(func, arg, scope):
+    if isinstance(func, RFunc):
+        return lambda d: func.run([d], arg, scope)
+    return func
+
+def key_or_getter(key, arg, scope):
+    if isinstance(key, str):
+        return lambda x: x[key]
+    return convert_func(key, arg, scope)
+
+class OrderByIndex(BinExp):
+    def get_index_func(self, index, arg, scope):
+        index_fn, _ = self.find_index_func_for_scope(
+            index,
+            arg
+        )
+        return convert_func(index_fn, arg, scope)
+
     def do_run(self, sequence, keys, arg, scope):
-        return util.sort_by_many(keys, sequence)
+        for key in keys[::-1]:
+            key, direction = parse_key_direction(key)
+            map_fn = key_or_getter(key, arg, scope)
+            sequence = sort_by_func(sequence, map_fn, direction)
+        index = self.optargs['index']
+        index, direction = parse_key_direction(index)
+        index_fn = self.get_index_func(index, arg, scope)
+        sequence = sort_by_func(sequence, index_fn, direction)
+        return sequence
+
+class OrderByKeys(OrderByIndex):
+    def do_run(self, sequence, keys, arg, scope):
+        for key in keys[::-1]:
+            key, direction = parse_key_direction(key)
+            map_fn = key_or_getter(key, arg, scope)
+            sequence = sort_by_func(sequence, map_fn, direction)
+        return sequence
 
 class Random0(RBase):
     def run(self, arg, scope): # pylint: disable=no-self-use

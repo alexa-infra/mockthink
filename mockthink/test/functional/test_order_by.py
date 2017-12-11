@@ -135,3 +135,144 @@ class TestOrderByMulti(MockTest):
         ]
         result = r.db('y').table('scores').order_by('score', 'age').run(conn)
         assertEqual(expected, list(result))
+
+class TestOrderByIndex(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': 'bill', 'age': 35, 'score': 78},
+            {'id': 'glen', 'age': 25, 'score': 10},
+            {'id': 'todd', 'age': 42, 'score': 15},
+            {'id': 'joe', 'age': 26, 'score': 60},
+            {'id': 'pale', 'age': 52, 'score': 30}
+        ]
+        return as_db_and_table('y', 'scores', data)
+
+    def _create_index(self, conn):
+        q = r.db('y').table('scores')
+        q = q.index_create('age')
+        q.run(conn)
+        q = r.db('y').table('scores')
+        q = q.index_wait()
+        q.run(conn)
+
+    def test_by_age(self, conn):
+        self._create_index(conn)
+        expected = ['glen', 'joe', 'bill', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by(index='age')
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+    def test_by_age_asc(self, conn):
+        self._create_index(conn)
+        expected = ['glen', 'joe', 'bill', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by(index=r.asc('age'))
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+    def test_by_age_desc(self, conn):
+        self._create_index(conn)
+        expected = ['pale', 'todd', 'bill', 'joe', 'glen']
+        q = r.db('y').table('scores')
+        q = q.order_by(index=r.desc('age'))
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+class TestOrderByIndexAndField(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': 'bill', 'age': 25, 'score': 78},
+            {'id': 'glen', 'age': 25, 'score': 10},
+            {'id': 'todd', 'age': 52, 'score': 15},
+            {'id': 'joe', 'age': 26, 'score': 60},
+            {'id': 'pale', 'age': 52, 'score': 30}
+        ]
+        return as_db_and_table('y', 'scores', data)
+
+    def _create_index(self, conn):
+        q = r.db('y').table('scores')
+        q = q.index_create('age')
+        q.run(conn)
+        q = r.db('y').table('scores')
+        q = q.index_wait()
+        q.run(conn)
+
+    def test_by_age_and_score(self, conn):
+        self._create_index(conn)
+        expected = ['glen', 'bill', 'joe', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by('score', index='age')
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+    def test_by_age_and_score_desc(self, conn):
+        self._create_index(conn)
+        expected = ['bill', 'glen', 'joe', 'pale', 'todd']
+        q = r.db('y').table('scores')
+        q = q.order_by(r.desc('score'), index='age')
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+class TestOrderByFieldAndFunc(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': 'bill', 'age': 25, 'score': 78},
+            {'id': 'glen', 'age': 25, 'score': 10},
+            {'id': 'todd', 'age': 52, 'score': 15},
+            {'id': 'joe', 'age': 26, 'score': 60},
+            {'id': 'pale', 'age': 52, 'score': 30}
+        ]
+        return as_db_and_table('y', 'scores', data)
+
+    def test_by_age_and_score(self, conn):
+        expected = ['glen', 'bill', 'joe', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by('age', r.row['score'])
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+    def test_by_age_and_score2(self, conn):
+        expected = ['glen', 'bill', 'joe', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by('age', lambda doc: doc['score'])
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+    def test_by_age_and_score2(self, conn):
+        expected = ['glen', 'bill', 'joe', 'todd', 'pale']
+        q = r.db('y').table('scores')
+        q = q.order_by(lambda doc: doc['age'], 'score')
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)
+
+class TestOrderByDescFunc(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': 'bill', 'age': 25, 'score': 78},
+            {'id': 'glen', 'age': 24, 'score': 10},
+            {'id': 'todd', 'age': 42, 'score': 15},
+            {'id': 'joe', 'age': 26, 'score': 60},
+            {'id': 'pale', 'age': 52, 'score': 30}
+        ]
+        return as_db_and_table('y', 'scores', data)
+
+    def test_by_age_and_score(self, conn):
+        expected = ['pale', 'todd', 'joe', 'bill', 'glen']
+        q = r.db('y').table('scores')
+        q = q.order_by(r.desc(r.row['age']))
+        q = q.get_field('id')
+        results = list(q.run(conn))
+        assertEqual(expected, results)

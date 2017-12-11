@@ -425,10 +425,9 @@ def handle_order_by(node):
             accepted = (r_ast.Desc, r_ast.Asc, r_ast.Func)
             assert isinstance(elem, accepted)
             right.append(type_dispatch(elem))
-    if isinstance(right[0], mt_ast.RFunc):
-        right = right[0]
-        return mt_ast.OrderByFunc(left, right, optargs=optargs)
     right = mt_ast.MakeArray(right)
+    if 'index' in optargs:
+        return mt_ast.OrderByIndex(left, right, optargs=optargs)
     return mt_ast.OrderByKeys(left, right, optargs=optargs)
 
 @handles_type(r_ast.OffsetsOf)
@@ -497,6 +496,9 @@ def handle_contains(node):
     return mt_ast.ContainsElems(sequence, rest, optargs=optargs)
 
 def plain_val_of_datum(datum_node):
+    if isinstance(datum_node, (r_ast.Desc, r_ast.Asc)):
+        mt_arg = type_dispatch(datum_node)
+        return mt_arg.run(None, None)
     if hasattr(datum_node, 'data'):
         return datum_node.data
     arg = datum_node._args[0]

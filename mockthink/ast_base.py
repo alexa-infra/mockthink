@@ -219,7 +219,10 @@ class MakeArray(RBase):
     def run(self, arg, scope):
         out = []
         for elem in self.vals:
-            out.append(elem.run(arg, scope))
+            if isinstance(elem, RFunc):
+                out.append(elem)
+            else:
+                out.append(elem.run(arg, scope))
         return out
 
 class LITERAL_OBJECT(dict):

@@ -60,6 +60,14 @@ class TestGetField(MockTest):
         expected = [1, 2]
         assertEqual(expected, results)
 
+    def test_get_field_none_in_list(self, conn):
+        q = r.expr([None, 1, 2])
+        q = q.map(lambda x: {'v': x})
+        q = q.get_field('v')
+        results = list(q.run(conn))
+        expected = [None, 1, 2]
+        assertEqual(expected, results)
+
     def test_get_field_missing(self, conn):
         results = r.db('x').table('farms').get_field('area').run(conn)
         expected = [10]

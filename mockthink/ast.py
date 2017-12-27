@@ -157,8 +157,9 @@ class GetField(BinExp):
             except KeyError:
                 self.raise_rql_not_found_error('Key "{}" not found'.format(attr))
         if util.is_iterable(thing):
-            mapped = list(map(lambda x: x.get(attr), thing))
-            return list(filter(None, mapped))
+            items = filter(lambda x: attr in x, thing)
+            items = map(lambda x: x.get(attr), items)
+            return list(items)
         self.raise_rql_runtime_error('Object or sequence of objects is expected')
 
 class Get(BinExp):

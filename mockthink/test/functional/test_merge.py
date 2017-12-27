@@ -105,3 +105,10 @@ class TestMerge(MockTest):
             lambda d: d['x'].merge({'nested': d['y']})
         ).run(conn)
         assertEqUnordered(expected, list(result))
+
+    def test_merge_lambda(self, conn):
+        q = r.expr([dict(x=1), dict(x=2)])
+        q = q.merge(lambda it: dict(y=it['x']*2))
+        results = list(q.run(conn))
+        expected = [dict(x=1, y=2), dict(x=2, y=4)]
+        assert expected == results

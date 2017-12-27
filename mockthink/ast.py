@@ -396,12 +396,29 @@ class PluckPoly(BinExp):
         return util.maybe_map(util.pluck_with(*attrs), left)
 
 class MergePoly(BinExp):
+    def run(self, arg, scope):
+        left = self.left.run(arg, scope)
+        if isinstance(self.right, RFunc):
+            right = lambda x: self.right.run(x, arg, scope)
+        else:
+            right = self.right.run(arg, scope)
+
+        if isinstance(left, GroupResults):
+            ret = GroupResults()
+            for k, v in left.items():
+                ret[k] = self.do_run(v, right, arg, scope)
+            return ret
+        return self.do_run(left, right, arg, scope)
+
     def do_run(self, left, ext_with, arg, scope):
         if ast_base.is_literal(ext_with):
             self.raise_rql_runtime_error('invalid top-level r.literal()')
         elif ast_base.has_nested_literal(ext_with):
             self.raise_rql_runtime_error('invalid nested r.literal()')
 
+        if callable(ext_with):
+            func = lambda x: ast_base.rql_merge_with(ext_with(x), x)
+            return util.maybe_map(func, left)
         return util.maybe_map(ast_base.rql_merge_with_pred(ext_with), left)
 
 

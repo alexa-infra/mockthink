@@ -901,17 +901,15 @@ class Between(Ternary):
             return []
         first_index = map_fn(first)
         is_compound = isinstance(first_index, (list, tuple))
-        def convert_limits(limit, data):
+        def convert_limits(limit):
             if isinstance(limit, (MinConst, MaxConst)):
-                return limit.get_value_for_type(data)
+                return limit.get_value()
             return limit
         if is_compound:
             assert isinstance(lower_key, (list, tuple))
             assert isinstance(upper_key, (list, tuple))
-            lower_key = [convert_limits(l, v) for v, l in
-                         zip(first_index, lower_key)]
-            upper_key = [convert_limits(u, v) for v,  u in
-                         zip(first_index, upper_key)]
+            lower_key = [convert_limits(k) for k in lower_key]
+            upper_key = [convert_limits(k) for k in upper_key]
             for document in table:
                 doc_val = map_fn(document)
                 match = True
@@ -926,8 +924,8 @@ class Between(Ternary):
                 if match:
                     yield document
         else:
-            lower_key = convert_limits(lower_key, first_index)
-            upper_key = convert_limits(upper_key, first_index)
+            lower_key = convert_limits(lower_key)
+            upper_key = convert_limits(upper_key)
             for document in table:
                 doc_val = map_fn(document)
                 if left_test(doc_val, lower_key) and right_test(doc_val, upper_key):
@@ -1127,20 +1125,12 @@ class MaxConst(RBase):
     def run(self, arg, scope):
         return self
 
-    def get_value_for_type(self, val):
-        if isinstance(val, datetime):
-            return rtime.max()
-        if isinstance(val, (int, float)):
-            return float('inf')
-        return None
+    def get_value(self):
+        return util.Max
 
 class MinConst(RBase):
     def run(self, arg, scope):
         return self
 
-    def get_value_for_type(self, val):
-        if isinstance(val, datetime):
-            return rtime.min()
-        if isinstance(val, (int, float)):
-            return float('-inf')
-        return None
+    def get_value(self):
+        return util.Min

@@ -1,6 +1,25 @@
 from collections import defaultdict
-from functools import partial
+from functools import partial, total_ordering
 
+
+@total_ordering
+class MinType(object):
+    def __le__(self, other):
+        return True
+
+    def __eq__(self, other):
+        return (self is other)
+
+@total_ordering
+class MaxType(object):
+    def __ge__(self, other):
+        return True
+
+    def __eq__(self, other):
+        return (self is other)
+
+Min = MinType()
+Max = MaxType()
 
 class GroupResults(defaultdict):
     def __init__(self, *args, **kwargs):

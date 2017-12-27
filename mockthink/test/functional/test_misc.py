@@ -46,6 +46,15 @@ class TestGetAll(MockTest):
         result = r.db('x').table('people').get_all('bob-id').run(conn)
         assertEqual(expected, list(result))
 
+    def test_get_all_nested(self, conn):
+        q = r.expr(['anne-id', 'joe-id'])
+        q = q.concat_map(lambda idx:
+            r.db('x').table('people').get_all(idx))
+        q = q.get_field('name')
+        results = list(q.run(conn))
+        expected = ['anne', 'joe']
+        assertEqUnordered(expected, results)
+
 class TestFiltering(MockTest):
     @staticmethod
     def get_data():

@@ -116,7 +116,7 @@ def _handle_n_ary(arity_type_map, node):
     rtype = arity_type_map[arg_len]
     return rmethod(rtype, node)
 
-def makearray_of_datums(datum_list):
+def makearray_of_datums(datum_list, typecheck=True):
     out = []
     for elem in datum_list:
         if isinstance(elem, r_ast.Args):
@@ -128,7 +128,7 @@ def makearray_of_datums(datum_list):
             continue
         expected_types = (r_ast.Datum, r_ast.Asc, r_ast.Desc,
                           r_ast.Func, r_ast.MakeArray, r_ast.MakeObj)
-        if not isinstance(elem, expected_types):
+        if typecheck and not isinstance(elem, expected_types):
             raise TypeError('unexpected elem type: %s' % elem)
         out.append(type_dispatch(elem))
     return mt_ast.MakeArray(out)
@@ -147,7 +147,7 @@ binop_splat = lambda ctor: partial(_binop_splat, ctor)
 def _binop_variable(mt_constructor, node):
     args = node._args
     left = type_dispatch(args[0])
-    right = makearray_of_datums(args[1:])
+    right = makearray_of_datums(args[1:], typecheck=False)
     return mt_constructor(left, right, optargs=process_optargs(node))
 
 binop_variable = lambda ctor: partial(_binop_variable, ctor)

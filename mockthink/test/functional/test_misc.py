@@ -109,6 +109,13 @@ class TestMapping(MockTest):
             err = e
         assert(isinstance(err, RqlRuntimeError))
 
+    def test_map_none_arg(self, conn):
+        q = r.expr([None, 1, 2])
+        q = q.map(lambda x: {'v': x})
+        results = list(q.run(conn))
+        expected = [dict(v=None), dict(v=1), dict(v=2)]
+        assertEqual(expected, results)
+
 class TestConcatMap(MockTest):
     @staticmethod
     def get_data():

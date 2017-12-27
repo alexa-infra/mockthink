@@ -11,16 +11,25 @@ class Scope(object):
         self.values = values or {}
         self.parent = None
 
-    def get_sym(self, x):
-        result = None
-        if x in self.values:
-            result = self.values[x]
-        elif self.parent:
-            result = self.parent.get_sym(x)
-        if result is None:
-            msg = "symbol not defined: %s" % x
+    def _get_sym(self, key):
+        if key in self.values:
+            return self.values[key]
+        if self.parent:
+            return self.parent._get_sym(key)
+        return None
+
+    def has_sym(self, key):
+        if key in self.values:
+            return True
+        if self.parent:
+            return self.parent.has_sym(key)
+        return False
+
+    def get_sym(self, key):
+        if not self.has_sym(key):
+            msg = "symbol not defined: %s" % key
             raise NotInScopeErr(msg)
-        return result
+        return self._get_sym(key)
 
     def push(self, vals):
         scope = Scope(vals)

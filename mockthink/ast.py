@@ -449,7 +449,7 @@ class SumByFunc(ByFuncBase):
 
 class Max1(MonExp):
     def do_run(self, sequence, arg, scope):
-        return max(list(sequence))
+        return util.max_mapped(lambda x: x, sequence)
 
 class MaxByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
@@ -485,7 +485,7 @@ class CountByFunc(ByFuncBase):
 
 class Min1(MonExp):
     def do_run(self, sequence, arg, scope):
-        return min(list(sequence))
+        return util.min_mapped(lambda x: x, sequence)
 
 class MinByField(BinExp):
     def do_run(self, sequence, field, arg, scope):
@@ -513,7 +513,8 @@ class Prepend(BinExp):
 
 def sort_by_func(sequence, func, direction):
     reverse = direction == 'DESC'
-    return sorted(sequence, key=func, reverse=reverse)
+    pred = lambda x: util.none2min(func(x))
+    return sorted(sequence, key=pred, reverse=reverse)
 
 def parse_key_direction(key):
     if isinstance(key, str):

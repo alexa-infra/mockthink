@@ -21,6 +21,8 @@ class MaxType(object):
 Min = MinType()
 Max = MaxType()
 
+none2min = lambda x: Min if x is None else x
+
 class GroupResults(defaultdict):
     def __init__(self, *args, **kwargs):
         super().__init__(lambda: [], *args, **kwargs)
@@ -159,20 +161,12 @@ def slice_with(start, end, a_list):
     return a_list[start:end]
 
 def max_mapped(func, sequence):
-    current = (func(sequence[0]), sequence[0])
-    for elem in sequence[1:]:
-        val = func(elem)
-        if is_num(val) and val > current[0]:
-            current = (val, elem)
-    return current[1]
+    pred = lambda x: none2min(func(x))
+    return max(sequence, key=pred)
 
 def min_mapped(func, sequence):
-    current = (func(sequence[0]), sequence[0])
-    for elem in sequence[1:]:
-        val = func(elem)
-        if is_num(val) and val < current[0]:
-            current = (val, elem)
-    return current[1]
+    pred = lambda x: none2min(func(x))
+    return min(sequence, key=pred)
 
 def group_by_func(func, sequence):
     output = GroupResults()
@@ -189,12 +183,6 @@ def safe_sum(nums):
 def safe_average(nums):
     actual_nums = list(filter(is_num, nums))
     return sum(actual_nums) / len(actual_nums)
-
-def safe_max(nums):
-    return max(filter(is_num, nums))
-
-def safe_min(nums):
-    return min(filter(is_num, nums))
 
 def array_of_string(string):
     return [char for char in string]

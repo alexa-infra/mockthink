@@ -206,6 +206,83 @@ class TestCompoundIndex(MockTest):
         assertEqual(expected, results)
 
 
+class TestMinMaxNone(MockTest):
+    @staticmethod
+    def get_data():
+        return as_db_and_table('x', 'npc', [])
+
+    def test_max(self, conn):
+        query = r.expr([None, -2, 1, 3, 8]).max()
+        result = query.run(conn)
+        expected = 8
+        assert expected == result
+
+    def test_min(self, conn):
+        query = r.expr([None, -2, 1, 3, 8]).min()
+        result = query.run(conn)
+        expected = None
+        assert expected == result
+
+    def test_min_without_none(self, conn):
+        query = r.expr([-2, 1, 3, 8]).min()
+        result = query.run(conn)
+        expected = -2
+        assert expected == result
+
+    def test_max_field(self, conn):
+        query = r.expr([dict(v=1), dict(v=None), dict(v=5)]).max('v')
+        result = query.run(conn)
+        expected = dict(v=5)
+        assert expected == result
+
+    def test_min_field(self, conn):
+        query = r.expr([dict(v=1), dict(v=None), dict(v=5)]).min('v')
+        result = query.run(conn)
+        expected = dict(v=None)
+        assert expected == result
+
+    def test_min_field_without_none(self, conn):
+        query = r.expr([dict(v=1), dict(v=5)]).min('v')
+        result = query.run(conn)
+        expected = dict(v=1)
+        assert expected == result
+
+    def test_max_func(self, conn):
+        query = r.expr([dict(v=1), dict(v=None), dict(v=5)])
+        query = query.max(lambda x: x['v'])
+        result = query.run(conn)
+        expected = dict(v=5)
+        assert expected == result
+
+    def test_min_func(self, conn):
+        query = r.expr([dict(v=1), dict(v=None), dict(v=5)])
+        query = query.min(lambda x: x['v'])
+        result = query.run(conn)
+        expected = dict(v=None)
+        assert expected == result
+
+    def test_min_func_without_none(self, conn):
+        query = r.expr([dict(v=1), dict(v=3), dict(v=5)])
+        query = query.min(lambda x: x['v'])
+        result = query.run(conn)
+        expected = dict(v=1)
+        assert expected == result
+
+class TestSortNone(MockTest):
+    @staticmethod
+    def get_data():
+        return as_db_and_table('x', 'npc', [])
+
+    def test_order_by(self, conn):
+        query = r.expr([None, -2, 3, 1, 8])
+        query = query.map(lambda x: {'v': x})
+        query = query.order_by(r.desc('v'))
+        query = query.get_field('v')
+        result = list(query.run(conn))
+        expected = [8, 3, 1, -2, None]
+        assert expected == result
+
+
 class TestForEach(MockTest):
     @staticmethod
     def get_data():

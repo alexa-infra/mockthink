@@ -525,6 +525,48 @@ class TestUpdateRql(MockTest):
         result = r.db('things').table('muppets').get('kermit-id').run(conn)
         assertEqual(expected, result)
 
+class TestUpdateRqlLambda(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': '1', 'value': 1},
+        ]
+        return as_db_and_table('x', 'a', data)
+
+    def test_update_r_row(self, conn):
+        expected = {
+            'id': '1', 'value': 2,
+        }
+        r.db('x').table('a').update({
+            'value': r.row['value'].default(0).add(1),
+        }).run(conn)
+        result = r.db('x').table('a').get('1').run(conn)
+        assert expected == result
+
+    def test_update_lambda(self, conn):
+        expected = {
+            'id': '1', 'value': 2,
+        }
+        r.db('x').table('a').update({
+            'value': lambda row: row['value'].default(0).add(1),
+        }).run(conn)
+        result = r.db('x').table('a').get('1').run(conn)
+        assert expected == result
+
+    def test_update_lambda_nested(self, conn):
+        expected = {
+                'id': '1', 'value': 1, 'statistics': {
+                    'value': 2,
+                },
+        }
+        r.db('x').table('a').update({
+            'statistics': {
+                'value': lambda row: row['value'].default(0).add(1),
+            }
+        }).run(conn)
+        result = r.db('x').table('a').get('1').run(conn)
+        assert expected == result
+
 class TestNestedUpdateNotLit(MockTest):
     @staticmethod
     def get_data():

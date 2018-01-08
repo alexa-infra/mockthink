@@ -103,7 +103,7 @@ class RFunc(RBase):
         return self.body.has_table_scope()
 
     def __str__(self):
-        params = ", ".join(self.param_names)
+        params = ", ".join(str(x) for x in self.param_names)
         return "<RFunc: [%s] { %s }>" % (params, self.body)
 
     def run(self, args, context, scope):
@@ -208,7 +208,10 @@ class MakeObj(RBase):
     def run(self, arg, scope):
         out = {}
         for k, v in self.vals.items():
-            out[k] = v.run(arg, scope)
+            if isinstance(v, RFunc):
+                out[k] = v
+            else:
+                out[k] = v.run(arg, scope)
         return out
 
 class MakeArray(RBase):

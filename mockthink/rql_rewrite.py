@@ -1,4 +1,5 @@
 from functools import partial
+from copy import deepcopy
 import rethinkdb.ast as r_ast
 from rethinkdb.query import RqlConstant
 
@@ -409,6 +410,7 @@ def handle_func(node):
     func_params = plain_list_of_make_array(node._args[0])
     func_body = node._args[1]
     if contains_ivar(func_body):
+        func_body = deepcopy(func_body)
         replace_implicit_vars(func_params[0], func_body)
     func_body = type_dispatch(func_body)
     return mt_ast.RFunc(func_params, func_body)

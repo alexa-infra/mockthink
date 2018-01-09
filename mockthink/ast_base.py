@@ -208,10 +208,7 @@ class MakeObj(RBase):
     def run(self, arg, scope):
         out = {}
         for k, v in self.vals.items():
-            if isinstance(v, RFunc):
-                out[k] = v
-            else:
-                out[k] = v.run(arg, scope)
+            out[k] = v.run(arg, scope)
         return out
 
 class MakeArray(RBase):

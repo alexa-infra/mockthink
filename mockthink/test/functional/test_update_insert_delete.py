@@ -530,6 +530,7 @@ class TestUpdateRqlLambda(MockTest):
     def get_data():
         data = [
             {'id': '1', 'value': 1},
+            {'id': '2', 'value': 2},
         ]
         return as_db_and_table('x', 'a', data)
 
@@ -547,24 +548,25 @@ class TestUpdateRqlLambda(MockTest):
         expected = {
             'id': '1', 'value': 2,
         }
-        r.db('x').table('a').update({
-            'value': lambda row: row['value'].default(0).add(1),
+        r.db('x').table('a').update(lambda row: {
+            'value': row['value'].default(0).add(1),
         }).run(conn)
         result = r.db('x').table('a').get('1').run(conn)
         assert expected == result
 
-    def test_update_lambda_nested(self, conn):
-        expected = {
-                'id': '1', 'value': 1, 'statistics': {
-                    'value': 2,
-                },
-        }
-        r.db('x').table('a').update({
-            'statistics': {
-                'value': lambda row: row['value'].default(0).add(1),
-            }
-        }).run(conn)
-        result = r.db('x').table('a').get('1').run(conn)
+    def test_update_rvar_nested(self, conn):
+        expected = [
+            {'id': '1', 'value': 2},
+            {'id': '2', 'value': 2},
+        ]
+        r.branch(
+            r.db('x').table('a').get_all('1').is_empty().not_(),
+            r.db('x').table('a').get_all('1').update({
+                'value': r.row['value'].default(0).add(1)
+                }),
+            r.db('x').table('a').insert({'id': '1', 'value': 1})
+        ).run(conn)
+        result = list(r.db('x').table('a').run(conn))
         assert expected == result
 
 class TestNestedUpdateNotLit(MockTest):

@@ -303,21 +303,9 @@ class UpdateByFunc(ByFuncBase, UpdateMixin):
 class UpdateWithObj(BinExp, UpdateMixin):
     def do_run(self, sequence, to_update, arg, scope):
         self.validate_nested_query_status()
-        def conv_elem(el, it):
-            if isinstance(el, (LITERAL_OBJECT, LITERAL_LIST)):
-                return el
-            if isinstance(el, dict):
-                return {k: conv_elem(v, it) for k, v in el.items()}
-            if isinstance(el, (list, set)):
-                return [conv_elem(v, it) for v in el]
-            if isinstance(el, RFunc):
-                return el.run(it, arg, scope)
-            return el
-        map_fn = lambda it: conv_elem(to_update, it)
-        def mapper(doc):
-            ext_with = map_fn(doc)
-            return ast_base.rql_merge_with(ext_with, doc)
-        return self.update_table(util.maybe_map(mapper, sequence), arg, scope)
+        merge_with_update = ast_base.rql_merge_with_pred(to_update)
+        updated_data = util.maybe_map(merge_with_update, sequence)
+        return self.update_table(updated_data, arg, scope)
 
 class Replace(BinExp, UpdateMixin):
     def do_run(self, left, right, arg, scope):

@@ -504,6 +504,11 @@ class TestIsEmpty(MockTest):
         ]
         return as_db_and_table('some_db', 'some_table', data)
 
+    def test_is_empty_table(self, conn):
+        query = r.db('some_db').table('some_table').is_empty()
+        result = query.run(conn)
+        assertEqual(False, result)
+
     def test_is_empty_nested(self, conn):
         expected = [
             {'id': 'id-1', 'things_empty': True, 'things': []},

@@ -84,6 +84,8 @@ class Zip(MonExp):
 
 class IsEmpty(MonExp):
     def do_run(self, left, arg, scope):
+        if util.is_iterable(left):
+            left = list(left)
         return len(left) == 0
 
 class RVar(MonExp):

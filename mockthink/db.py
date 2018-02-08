@@ -1,5 +1,7 @@
 import contextlib
 from pprint import pprint
+from copy import deepcopy
+from collections import Iterable
 
 import rethinkdb
 
@@ -361,6 +363,12 @@ class MockThink(object):
             elif isinstance(result, MockTableData):
                 result = result.get_rows()
 
+            if isinstance(result, util.GroupResults):
+                return deepcopy(dict(result))
+            if isinstance(result, (dict, list, str)):
+                return deepcopy(result)
+            if isinstance(result, Iterable):
+                return list(map(deepcopy, result))
             return result
         finally:
             if temp_now_time:

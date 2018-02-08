@@ -6,6 +6,22 @@ from mockthink.test.common import as_db_and_table, assertEqUnordered, assertEqua
 from mockthink.test.functional.common import MockTest
 
 
+class TestImmutable(MockTest):
+    @staticmethod
+    def get_data():
+        data = [
+            {'id': 'joe-id', 'name': 'joe'},
+            {'id': 'bob-id', 'name': 'bob'}
+        ]
+        return as_db_and_table('x', 'people', data)
+
+    def test_immutable(self, conn):
+        result = r.db('x').table('people').get('bob-id').run(conn)
+        assert 'id' in result and result['id'] == 'bob-id'
+        del result['id']
+        result = r.db('x').table('people').get('bob-id').run(conn)
+        assert 'id' in result and result['id'] == 'bob-id'
+
 class TestGet(MockTest):
     @staticmethod
     def get_data():

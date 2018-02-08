@@ -98,7 +98,7 @@ class Not(MonExp):
 
 class Keys(MonExp):
     def do_run(self, left, arg, scope):
-        return left.keys()
+        return list(left.keys())
 
 class Asc(MonExp):
     def run(self, arg, scope):

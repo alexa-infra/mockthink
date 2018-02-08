@@ -392,6 +392,16 @@ class TestArgs(MockTest):
         expected = ['joe', 'bill']
         assertEqUnordered(expected, results)
 
+    def test_get_all_args_lambda(self, conn):
+        query = r.expr({'friends': ['joe-id', 'bill-id']})
+        query = query.do(lambda row:
+            r.db('x').table('npc').get_all(r.args(row['friends']))
+        )
+        query = query.get_field('name')
+        results = query.run(conn)
+        expected = ['joe', 'bill']
+        assertEqUnordered(expected, results)
+
     def test_contains_args(self, conn):
         query = r.expr([1, 2, 3])
         query = query.contains(r.args([1, 2]))

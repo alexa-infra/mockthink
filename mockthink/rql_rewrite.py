@@ -122,8 +122,9 @@ def makearray_of_datums(datum_list, typecheck=True):
     for elem in datum_list:
         if isinstance(elem, r_ast.Args):
             assert len(elem._args) == 1
-            assert isinstance(elem._args[0], r_ast.MakeArray)
             arr_node = elem._args[0]
+            if not isinstance(arr_node, r_ast.MakeArray):
+                return type_dispatch(arr_node)
             for arg in arr_node._args:
                 out.append(type_dispatch(arg))
             continue

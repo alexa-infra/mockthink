@@ -309,8 +309,14 @@ class UpdateWithObj(BinExp, UpdateMixin):
         updated_data = util.maybe_map(merge_with_update, sequence)
         return self.update_table(updated_data, arg, scope)
 
-class Replace(BinExp, UpdateMixin):
+class ReplaceByFunc(ByFuncBase, UpdateMixin):
+    def do_run(self, sequence, map_fn, arg, scope):
+        self.validate_nested_query_status()
+        return self.update_table(util.maybe_map(map_fn, sequence), arg, scope)
+
+class ReplaceWithObj(BinExp, UpdateMixin):
     def do_run(self, left, right, arg, scope):
+        self.validate_nested_query_status()
         return self.update_table(right, arg, scope)
 
 class Delete(MonExp):

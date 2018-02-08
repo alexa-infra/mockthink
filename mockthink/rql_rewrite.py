@@ -237,7 +237,6 @@ NORMAL_BINOPS = {
     r_ast.Map: mt_ast.MapWithRFunc,
     r_ast.ConcatMap: mt_ast.ConcatMap,
     r_ast.ForEach: mt_ast.ForEach,
-    r_ast.Replace: mt_ast.Replace,
     r_ast.Merge: mt_ast.MergePoly,
     r_ast.Append: mt_ast.Append,
     r_ast.Prepend: mt_ast.Prepend,
@@ -273,7 +272,11 @@ BINOPS_BY_ARG_2_TYPE = {
     r_ast.Update: {
         r_ast.MakeObj: mt_ast.UpdateWithObj,
         r_ast.Func: mt_ast.UpdateByFunc
-    }
+    },
+    r_ast.Replace: {
+        r_ast.MakeObj: mt_ast.ReplaceWithObj,
+        r_ast.Func: mt_ast.ReplaceByFunc
+    },
 }
 
 #   ReQL represents these as varargs functions, which can take an array as second arg or

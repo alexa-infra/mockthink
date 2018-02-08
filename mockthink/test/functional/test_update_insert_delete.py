@@ -26,6 +26,17 @@ class TestReplace(MockTest):
         result = r.db('things').table('muppets').run(conn)
         assertEqUnordered(expected, result)
 
+    def test_replace_func(self, conn):
+        expected = [
+            {'id': 'kermit-id', 'name': 'Kermit'},
+            {'id': 'piggy-id', 'species': 'pig', 'name': 'Ms. Piggy'}
+        ]
+        r.db('things').table('muppets').get_all('kermit-id').replace(
+            r.row.without('species')
+        ).run(conn)
+        result = r.db('things').table('muppets').run(conn)
+        assertEqUnordered(expected, result)
+
     def test_replace_one_from_table(self, conn):
         expected = [
             {'id': 'kermit-id', 'name': 'Just Kermit'},

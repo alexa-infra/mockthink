@@ -767,6 +767,35 @@ class TestBranch(MockTest):
         result = list(result)
         assertEqUnordered(expected, list(result))
 
+    def test_branch_syntax(self, conn):
+        result = r.expr(True).branch('True', 'False').run(conn)
+        assert result == 'True'
+        result = r.expr(False).branch('True', 'False').run(conn)
+        assert result == 'False'
+
+    def test_branch_2n_1(self, conn):
+        test_func = r.branch(
+            r.row['value'] > 20,
+            'more_than_20',
+            r.row['value'] > 15,
+            'more_than_15',
+            r.row['value'] > 10,
+            'more_than_10',
+            r.row['value'] > 5,
+            'more_than_5',
+            'more_than_0'
+        )
+        result = r.expr({'value': 25}).do(test_func).run(conn)
+        assert result == 'more_than_20'
+        result = r.expr({'value': 17}).do(test_func).run(conn)
+        assert result == 'more_than_15'
+        result = r.expr({'value': 13}).do(test_func).run(conn)
+        assert result == 'more_than_10'
+        result = r.expr({'value': 8}).do(test_func).run(conn)
+        assert result == 'more_than_5'
+        result = r.expr({'value': 3}).do(test_func).run(conn)
+        assert result == 'more_than_0'
+
 class TestSync(MockTest):
     @staticmethod
     def get_data():

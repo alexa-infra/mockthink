@@ -640,17 +640,22 @@ class UnGroup(MonExp):
         return list(dict(group=k, reduction=v) for k, v in grouped_seq.items())
 
 class Branch(RBase):
-    def __init__(self, test, if_true, if_false, *args, **kwargs):
-        self.test = test
-        self.if_true = if_true
-        self.if_false = if_false
+    def __init__(self, *args, **kwargs):
+        # len(args) = 2*n + 1
+        assert len(args) >= 3
+        assert (len(args) - 1) % 2 == 0
+        self.args = args
         super().__init__(*args, **kwargs)
 
     def run(self, arg, scope):
-        test = self.test.run(arg, scope)
-        if test is False or test is None:
-            return self.if_false.run(arg, scope)
-        return self.if_true.run(arg, scope)
+        def branch(test, true_action, false_action, *rest):
+            result = test.run(arg, scope)
+            if bool(result) is True:
+                return true_action.run(arg, scope)
+            if not rest:
+                return false_action.run(arg, scope)
+            return branch(false_action, *rest)
+        return branch(*self.args)
 
 class Difference(BinExp):
     def do_run(self, sequence, to_remove, arg, scope):

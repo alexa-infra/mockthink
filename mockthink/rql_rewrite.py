@@ -300,7 +300,6 @@ NORMAL_TERNOPS = {
     r_ast.InsertAt: mt_ast.InsertAt,
     r_ast.SpliceAt: mt_ast.SpliceAt,
     r_ast.ChangeAt: mt_ast.ChangeAt,
-    r_ast.Branch: mt_ast.Branch,
     r_ast.IndexRename: mt_ast.IndexRename,
     r_ast.Between: mt_ast.Between,
     r_ast.During: mt_ast.During
@@ -392,6 +391,11 @@ for r_type, mt_type in OPS_BY_ARITY.items():
 
 for r_type, type_map in NORMAL_AGGREGATIONS.items():
     RQL_TYPE_HANDLERS[r_type] = handle_generic_aggregation(type_map)
+
+@handles_type(r_ast.Branch)
+def handle_branch(node):
+    args = [type_dispatch(elem) for elem in node._args]
+    return mt_ast.Branch(*args, optargs=process_optargs(node))
 
 @handles_type(r_ast.Datum)
 def handle_datum(node):

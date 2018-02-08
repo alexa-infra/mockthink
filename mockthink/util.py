@@ -85,6 +85,8 @@ def has_attrs(attr_list, thing):
 has_attrs_pred = lambda attr_list: partial(has_attrs, attr_list)
 
 def nth(n, things):
+    if is_iterable(things):
+        things = list(things)
     return things[n]
 
 def getter(key, thing):

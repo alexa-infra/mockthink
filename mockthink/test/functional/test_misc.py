@@ -291,6 +291,26 @@ class TestSortNone(MockTest):
         expected = [8, 3, 1, -2, None]
         assert expected == result
 
+class TestNth(MockTest):
+    @staticmethod
+    def get_data():
+        return as_db_and_table('x', 'npc', [
+            {'id': 1, 'name': 'bill'},
+            {'id': 2, 'name': 'john'},
+            {'id': 3, 'name': 'tom'},
+        ])
+
+    def test_nth(self, conn):
+        query = r.db('x').table('npc').order_by('name').nth(0)
+        result = query.get_field('name').run(conn)
+        expected = 'bill'
+        assert expected == result
+
+    def test_nth_expr(self, conn):
+        query = r.expr([1, 2, 3]).nth(0)
+        result = query.run(conn)
+        expected = 1
+        assert expected == result
 
 class TestForEach(MockTest):
     @staticmethod

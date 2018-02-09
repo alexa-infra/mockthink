@@ -19,6 +19,22 @@ class TestDateTimeGetters(MockTest):
         ]
         return as_db_and_table('d', 'people', data)
 
+    def test_custom_convert(self, conn):
+        query = r.db('d').table('people').merge(lambda x: {
+            'last_updated': r.time(x['last_updated'].year(),
+                                   x['last_updated'].month(),
+                                   x['last_updated'].day(),
+                                   0, 0, 0, 'Z'),
+        })
+        query = query.get_field('last_updated')
+        result = query.run(conn)
+        utctz = rtime.create_rql_timezone('Z')
+        expected = [
+            rtime.make_time(2014, 6, 3, timezone=utctz),
+            rtime.make_time(2014, 8, 25, timezone=utctz),
+        ]
+        assertEqUnordered(expected, result)
+
     def test_year(self, conn):
         expected = [2014, 2014]
         result = r.db('d').table('people').map(

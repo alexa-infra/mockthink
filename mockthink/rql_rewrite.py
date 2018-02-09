@@ -467,7 +467,7 @@ def handle_funcall(node):
 
 @handles_type(r_ast.Time)
 def handle_time(node):
-    arg = makearray_of_datums(node._args)
+    arg = makearray_of_datums(node._args, typecheck=False)
     return mt_ast.Time(arg)
 
 @handles_type(r_ast.Count)

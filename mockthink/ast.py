@@ -261,6 +261,8 @@ class Or(BinOp):
 
 class Reduce(ByFuncBase):
     def do_run(self, sequence, reduce_fn, arg, scope):
+        if len(sequence) < 2:
+            return None
         first, second = sequence[0:2]
         result = reduce_fn([first, second])
         for elem in sequence[2:]:

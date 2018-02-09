@@ -763,6 +763,39 @@ class TestReduce(MockTest):
         ).run(conn)
         assertEqual(expected, result)
 
+    def test_reduce_2(self, conn):
+        expected = 150
+        result = r.db('d').table('nums').filter(
+            r.row['points'] >= 50
+        ).map(
+            lambda doc: doc['points']
+        ).reduce(
+            lambda elem, acc: elem + acc
+        ).default(0).run(conn)
+        assertEqual(expected, result)
+
+    def test_reduce_empty(self, conn):
+        expected = 0
+        result = r.db('d').table('nums').filter(
+            r.row['points'] > 100
+        ).map(
+            lambda doc: doc['points']
+        ).reduce(
+            lambda elem, acc: elem + acc
+        ).default(0).run(conn)
+        assertEqual(expected, result)
+
+    def test_reduce_empty_2(self, conn):
+        expected = 0
+        result = r.db('d').table('nums').filter(
+            r.row['points'] >= 100
+        ).map(
+            lambda doc: doc['points']
+        ).reduce(
+            lambda elem, acc: elem + acc
+        ).default(0).run(conn)
+        assertEqual(expected, result)
+
 
 
 class TestBranch(MockTest):

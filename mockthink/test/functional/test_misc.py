@@ -22,6 +22,12 @@ class TestImmutable(MockTest):
         result = r.db('x').table('people').get('bob-id').run(conn)
         assert 'id' in result and result['id'] == 'bob-id'
 
+    def test_next_iter(self, conn):
+        result = r.db('x').table('people').get_field('name').run(conn)
+        name = next(result, None)
+        assert name == 'joe'
+
+
 class TestGet(MockTest):
     @staticmethod
     def get_data():
@@ -172,7 +178,7 @@ class TestConcatMap(MockTest):
         results = r.db('x').table('npc').concat_map(
             r.row['tags']
         ).run(conn)
-        assertEqual(expected, results)
+        assertEqual(expected, list(results))
 
     def test_concat_map_nested_query(self, conn):
         expected = ['shovel', 'gun', 'lighter', 'superpower']
@@ -601,7 +607,7 @@ class TestDo(MockTest):
         result = r.do(base.get('one'), base.get('two'),
             lambda d1, d2: [d1['name'], d2['name']]
         ).run(conn)
-        assertEqual(['One', 'Two'], result)
+        assertEqual(['One', 'Two'], list(result))
 
     def test_do_three(self, conn):
         base = r.db('generic').table('table')
@@ -611,7 +617,7 @@ class TestDo(MockTest):
             base.get('three'),
             lambda d1, d2, d3: [d1['name'], d2['name'], d3['name']]
         ).run(conn)
-        assertEqual(['One', 'Two', 'Three'], result)
+        assertEqual(['One', 'Two', 'Three'], list(result))
 
 
 class TestSets(MockTest):

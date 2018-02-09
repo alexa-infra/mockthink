@@ -61,7 +61,7 @@ class TestToplevelTable(object):
             dict(id=2, name=2)
         ]))
         conn = db.get_conn(db='my')
-        results = r.table('xx').get_field('id').run(conn)
+        results = list(r.table('xx').get_field('id').run(conn))
         expected = [1, 2]
         assertEqual(expected, results)
 
@@ -86,6 +86,6 @@ class TestToplevelTable(object):
         query = query.map(lambda refid:
             r.table('refs').get(refid).get_field('name')
         )
-        results = query.run(conn)
+        results = list(query.run(conn))
         expected = ['eins', 'zwei']
         assertEqual(expected, results)

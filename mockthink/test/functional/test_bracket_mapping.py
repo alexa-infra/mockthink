@@ -58,7 +58,7 @@ class TestGetField(MockTest):
     def test_get_field(self, conn):
         results = r.db('x').table('farms').get_field('id').run(conn)
         expected = [1, 2]
-        assertEqual(expected, results)
+        assertEqual(expected, list(results))
 
     def test_get_field_none_in_list(self, conn):
         q = r.expr([None, 1, 2])
@@ -71,7 +71,7 @@ class TestGetField(MockTest):
     def test_get_field_missing(self, conn):
         results = r.db('x').table('farms').get_field('area').run(conn)
         expected = [10]
-        assertEqual(expected, results)
+        assertEqual(expected, list(results))
 
     def test_get_field_object(self, conn):
         results = r.expr(dict(name=1)).get_field('name').run(conn)

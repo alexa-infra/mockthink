@@ -322,6 +322,15 @@ class MockThinkConn(object):
     def use(self, db_name):
         self.db = db_name
 
+class Cursor:
+    def __init__(self, it):
+        self.it = iter(it)
+    def __iter__(self):
+        return self
+    def __next__(self):
+        it = next(self.it)
+        return deepcopy(it)
+
 class MockThink(object):
     def __init__(self, initial_data):
         self.data = None
@@ -365,10 +374,10 @@ class MockThink(object):
 
             if isinstance(result, util.GroupResults):
                 return deepcopy(dict(result))
-            if isinstance(result, (dict, list, str)):
+            if isinstance(result, (dict, str)):
                 return deepcopy(result)
             if isinstance(result, Iterable):
-                return list(map(deepcopy, result))
+                return Cursor(result)
             return result
         finally:
             if temp_now_time:

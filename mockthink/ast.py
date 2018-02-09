@@ -456,7 +456,10 @@ class Slice(BinExp):
 
 class Nth(BinExp):
     def do_run(self, sequence, n, arg, scope):
-        return util.nth(n, sequence)
+        try:
+            return util.nth(n, sequence)
+        except IndexError:
+            raise ReqlNonExistenceError('index out of range')
 
 class Sum1(MonExp):
     def do_run(self, sequence, arg, scope):

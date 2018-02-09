@@ -322,6 +322,12 @@ class TestNth(MockTest):
         expected = 'bill'
         assert expected == result
 
+    def test_nth_outofrange(self, conn):
+        query = r.db('x').table('npc').order_by('name').nth(5)
+        result = query.get_field('name').default(None).run(conn)
+        expected = None
+        assert expected == result
+
     def test_nth_expr(self, conn):
         query = r.expr([1, 2, 3]).nth(0)
         result = query.run(conn)

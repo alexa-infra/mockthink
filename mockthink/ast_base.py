@@ -60,7 +60,7 @@ class RBase:
         # doing it this way means error messages won't
         # be properly printed
         term = AttrHaving({
-            'args': (),
+            '_args': (),
             'optargs': {},
             'compose': (lambda x, y: 'COMPOSED')
         })
@@ -68,7 +68,7 @@ class RBase:
 
     def raise_rql_compile_error(self, msg): # pylint: disable=no-self-use
         term = AttrHaving({
-            'args': (),
+            '_args': (),
             'optargs': {},
             'compose': (lambda x, y: 'COMPOSED')
         })
@@ -76,7 +76,7 @@ class RBase:
 
     def raise_rql_not_found_error(self, msg): # pylint: disable=no-self-use
         term = AttrHaving({
-            'args': (),
+            '_args': (),
             'optargs': {},
             'compose': (lambda x, y: 'COMPOSED')
         })

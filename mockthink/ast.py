@@ -5,6 +5,7 @@ import uuid
 import json
 from datetime import datetime, timedelta
 from pprint import pprint
+from functools import reduce
 
 import dateutil.parser
 from rethinkdb import ReqlNonExistenceError
@@ -261,14 +262,9 @@ class Or(BinOp):
 
 class Reduce(ByFuncBase):
     def do_run(self, sequence, reduce_fn, arg, scope):
-        if len(sequence) < 2:
+        if not sequence:
             return None
-        first, second = sequence[0:2]
-        result = reduce_fn([first, second])
-        for elem in sequence[2:]:
-            result = reduce_fn([elem, result])
-        return result
-
+        return reduce(lambda left, right: reduce_fn([left, right]), sequence)
 
 class UpdateMixin(object):
     def __init__(self, *args):

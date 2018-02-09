@@ -798,7 +798,7 @@ class TestReduce(MockTest):
         assertEqual(expected, result)
 
     def test_reduce_empty_2(self, conn):
-        expected = 0
+        expected = 100
         result = r.db('d').table('nums').filter(
             r.row['points'] >= 100
         ).map(
@@ -807,6 +807,16 @@ class TestReduce(MockTest):
             lambda elem, acc: elem + acc
         ).default(0).run(conn)
         assertEqual(expected, result)
+
+    def test_reduce_3(self, conn):
+        q = r.expr([dict(a=1, b=1), dict(a=2, b=2), dict(a=3, b=3)])
+        q = q.reduce(lambda elem, acc: {
+            'a': elem['a'] + acc['a'],
+            'b': elem['b'] + acc['b'],
+        })
+        result = q.run(conn)
+        expected = dict(a=6, b=6)
+        assert result == expected
 
 
 
